@@ -3,13 +3,18 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 import { Route, Routes } from 'react-router-dom'
+// Routes
+import Home from './pages/home'
+import Automate from './pages/automate'
+import PartsList from './pages/parts-lists' 
 
 function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<h1>Home Page</h1>} />
-      <Route path="/about" element={<h1>About Page</h1>} />
+      <Route path="/" element={<Home/>} /> 
+      <Route path="/automate" element={<Automate/>} />
+      <Route path="/lists" element={<PartsList/>} />
     </Routes>
   )
 }
