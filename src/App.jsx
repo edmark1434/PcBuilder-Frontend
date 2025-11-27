@@ -7,6 +7,7 @@ import { Route, Routes } from 'react-router-dom'
 import Home from './pages/home'
 import Automate from './pages/automate'
 import PartsList from './pages/parts-lists' 
+import AskAI from './pages/ask-ai'
 
 function App() {
 
@@ -15,6 +16,7 @@ function App() {
       <Route path="/" element={<Home/>} /> 
       <Route path="/automate" element={<Automate/>} />
       <Route path="/lists" element={<PartsList/>} />
+      <Route path="/ask" element={<AskAI/>} />
     </Routes>
   )
 }

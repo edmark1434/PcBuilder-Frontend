@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Logo from '../components/logo';
 
 const Automate = () => {
     const navigate = useNavigate();
@@ -35,9 +36,10 @@ const Automate = () => {
     return (
         <div className="min-h-screen bg-black text-white p-8">
             {/* Logo/Brand */}
-            <div className="mb-16">
+            {/* <div className="mb-16">
                 <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
-            </div>
+            </div> */}
+            <Logo />
 
             {/* Main Content */}
             <div className="max-w-4xl mx-auto">
