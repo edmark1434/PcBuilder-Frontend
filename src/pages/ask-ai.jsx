@@ -63,7 +63,6 @@ const AskAI = () => {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {messages.length === 0 ? (
-                    // Initial State - Centered
                     <div className="flex-1 flex flex-col items-center justify-center px-6 transition-all duration-500 ease-in-out">
                         <h2 className="text-2xl font-semibold text-center mb-8">
                             Ask me about your build!
@@ -92,9 +91,7 @@ const AskAI = () => {
                         </div>
                     </div>
                 ) : (
-                    // Chat State - Messages + Input at Bottom
                     <>
-                        {/* Chat Area */}
                         <div className="flex-1 overflow-y-auto px-8 py-4 parts-scrollbar transition-all duration-500 ease-in-out">
                             <div className="max-w-7xl mx-auto space-y-6">
                                 {messages.map((message, index) => (
@@ -128,7 +125,6 @@ const AskAI = () => {
                             </div>
                         </div>
 
-                        {/* Input Area - Bottom */}
                         <div className="p-8 border-t border-gray-800 transition-all duration-500 ease-in-out">
                             <div className="max-w-7xl mx-auto">
                                 <div className="flex items-center gap-4 bg-gray-800 rounded-full px-6 py-4">

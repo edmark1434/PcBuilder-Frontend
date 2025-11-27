@@ -27,27 +27,19 @@ const PartsList = () => {
 
     return (
         <div className="h-screen bg-black text-white p-8 overflow-hidden flex flex-col">
-            {/* Logo/Brand */}
-            {/* <div className="mb-8">
-                <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
-            </div> */}
             <Logo />
-
             {/* Main Container */}
             <div className="flex-1 max-w-7xl w-full mx-auto border border-gray-600 rounded-lg p-6 flex flex-col overflow-hidden">
                 {/* Parts List Container */}
                 <div className="flex-1 border border-gray-700 rounded-lg mb-6 overflow-hidden flex flex-col">
                     {/* Header */}
                     <div className="bg-gray-900 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                        {/* Left side: Icon + Parts List */}
                         <div className="flex items-center gap-2">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                             <span className="font-semibold">Parts List</span>
                         </div>
-                        
-                        {/* Right side: Generate Again Button */}
                         <button 
                             onClick={() => window.location.reload()}
                             className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
@@ -59,14 +51,12 @@ const PartsList = () => {
                         </button>
                     </div>
 
-                    {/* Parts List - Scrollable */}
                     <div className="flex-1 overflow-y-auto parts-scrollbar">
                         {parts.map((part) => (
                             <div 
                                 key={part.id}
                                 className="flex items-center justify-between px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors"
                             >
-                                {/* Left group: PartType + Image + Name */}
                                 <div className="flex items-center gap-7">
                                     <span className="bg-gray-700 text-white p-2 rounded">
                                         {part.partType}
@@ -84,7 +74,6 @@ const PartsList = () => {
                                     <span className="text-gray-300">{part.name}</span>
                                 </div>
 
-                                {/* Right group: Price + Delete */}
                                 <div className="flex items-center gap-4">
                                     <span className="text-green-400 font-medium">₱ {part.price.toLocaleString()}</span>
                                     <button

@@ -5,7 +5,9 @@ import Logo from '../components/logo';
 const Automate = () => {
     const navigate = useNavigate();
 
-    const [selectedUse, setSelectedUse] = useState('');
+    const [selectedUse, setSelectedUse] = useState(''); 
+    const [selectedUses, setSelectedUses] = useState([]); 
+    const [isMixedUse, setIsMixedUse] = useState(false); 
     const [priceRange, setPriceRange] = useState('');
 
     const useCases = [
@@ -18,36 +20,39 @@ const Automate = () => {
         'Streaming',
         '3D Modeling',
         'Programming',
-        'Everyday Use',
-        'Mixed Use',
-        'Content Creation',
-        'Other'
+        'Content Creation'
     ];
 
+    const handleUseCaseClick = (useCase) => {
+        if (isMixedUse) {
+            if (selectedUses.includes(useCase)) {
+                setSelectedUses(selectedUses.filter(u => u !== useCase));
+            } else {
+                setSelectedUses([...selectedUses, useCase]);
+            }
+        } else {
+            setSelectedUse(useCase);
+        }
+    };
+
     const handleSubmit = () => {
-        if (selectedUse && priceRange) {
-            console.log('Selected Use:', selectedUse);
+        if ((isMixedUse && selectedUses.length > 0) || (!isMixedUse && selectedUse)) {
+            console.log('Selected Use(s):', isMixedUse ? selectedUses : selectedUse);
             console.log('Price Range:', priceRange);
-            // Handle form submission
             navigate('/lists');
+        } else {
+            alert('Please select at least one use case.');
         }
     };
 
     return (
         <div className="min-h-screen bg-black text-white p-8">
-            {/* Logo/Brand */}
-            {/* <div className="mb-16">
-                <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
-            </div> */}
             <Logo />
-
-            {/* Main Content */}
             <div className="max-w-4xl mx-auto">
                 <p className="flex text-gray-300 mb-8">
                     Please fill in the details below to generate your AI-recommended PC build.
                 </p>
 
-                {/* Form Container */}
                 <div className="border border-gray-600 rounded-lg p-8 mb-8">
                     {/* Use Case Selection */}
                     <div className="mb-8">
@@ -55,20 +60,43 @@ const Automate = () => {
                             What Will You Use This PC For?
                         </label>
                         <div className="flex flex-wrap gap-3">
-                            {useCases.map((useCase) => (
-                                <button
-                                    key={useCase}
-                                    onClick={() => setSelectedUse(useCase)}
-                                    className={`px-6 py-2 rounded-full border-2 transition-colors duration-200 ${
-                                        selectedUse === useCase
-                                            ? 'bg-white text-black border-white'
-                                            : 'bg-transparent text-white border-white hover:bg-white hover:text-black'
-                                    }`}
-                                >
-                                    {useCase}
-                                </button>
-                            ))}
+                            {useCases.map((useCase) => {
+                                const isSelected = isMixedUse
+                                    ? selectedUses.includes(useCase)
+                                    : selectedUse === useCase;
+
+                                return (
+                                    <button
+                                        key={useCase}
+                                        onClick={() => handleUseCaseClick(useCase)}
+                                        className={`px-6 py-2 rounded-full border-2 transition-colors duration-200 ${
+                                            isSelected
+                                                ? 'bg-white text-black border-white'
+                                                : 'bg-transparent text-white border-white hover:bg-white hover:text-black'
+                                        }`}
+                                    >
+                                        {useCase}
+                                    </button>
+                                );
+                            })}
                         </div>
+                    </div>
+
+                    {/* Mixed Use Checkbox */}
+                    <div className="mb-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isMixedUse}
+                                onChange={(e) => {
+                                    setIsMixedUse(e.target.checked);
+                                    setSelectedUse(''); 
+                                    setSelectedUses([]); 
+                                }}
+                                className="w-5 h-5 accent-pink-500"
+                            />
+                            Mixed Use (Select multiple use cases)
+                        </label>
                     </div>
 
                     {/* Price Range */}
@@ -86,7 +114,6 @@ const Automate = () => {
                     </div>
                 </div>
 
-                {/* Continue Button */}
                 <div className="flex justify-end">
                     <button
                         onClick={handleSubmit}
@@ -98,6 +125,6 @@ const Automate = () => {
             </div>
         </div>
     );
-}
+};
 
 export default Automate;
