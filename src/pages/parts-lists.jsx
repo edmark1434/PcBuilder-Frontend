@@ -21,9 +21,7 @@ const PartsList = () => {
 
     const totalPrice = parts.reduce((sum, part) => sum + part.price, 0);
 
-    const handleDelete = (id) => {
-        setParts(parts.filter(part => part.id !== id));
-    };
+    const [liked, setLiked] = useState(false);
 
     return (
         <div className="h-screen bg-black text-white p-8 overflow-hidden flex flex-col">
@@ -40,7 +38,7 @@ const PartsList = () => {
                             </svg>
                             <span className="font-semibold">Parts List</span>
                         </div>
-                        <button 
+                        <button
                             onClick={() => window.location.reload()}
                             className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
                         >
@@ -54,7 +52,7 @@ const PartsList = () => {
                     {/* Parts List - Scrollable */}
                     <div className="flex-1 overflow-y-auto parts-scrollbar">
                         {parts.map((part) => (
-                            <div 
+                            <div
                                 key={part.id}
                                 className="flex items-center justify-between px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors"
                             >
@@ -67,8 +65,8 @@ const PartsList = () => {
 
                                     {/* Image - Always in same position */}
                                     {part.image ? (
-                                        <img 
-                                            src={part.image} 
+                                        <img
+                                            src={part.image}
                                             alt={part.name}
                                             onClick={() => setZoomedImage(part.image)}
                                             className="w-12 h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors"
@@ -80,30 +78,47 @@ const PartsList = () => {
                                     <span className="text-gray-300">{part.name}</span>
                                 </div>
 
-                                {/* Right group: Price + Delete */}
+                                {/* Right group: Price */}
                                 <div className="flex items-center gap-4">
                                     <span className="text-green-400 font-medium">₱ {part.price.toLocaleString()}</span>
-                                    <button
-                                        onClick={() => handleDelete(part.id)}
-                                        className="bg-gray-700 hover:bg-red-600 text-white p-2 rounded transition-colors"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                    </button>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                 {/* Total Price */}
+
                 <div className="flex items-center justify-between mb-6">
-                    <button 
-                        className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
-                    >
-                        Download List
-                    </button>
+                    {/* Left group: Download + Heart */}
+                    <div className="flex items-center gap-4">
+                        <button
+                            className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
+                        >
+                            Download List
+                        </button>
+
+                        {/* Simple Heart Button */}
+                        <button
+                            onClick={() => setLiked(!liked)}
+                            className="w-8 h-8 flex items-center justify-center transition-all duration-300"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill={liked ? 'currentColor' : 'none'}
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="w-7 h-7 text-pink-500"
+                            >
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                            </svg>
+                        </button>
+
+                    </div>
+
+                    {/* Total Price */}
                     <div className="border border-green-500 text-green-400 px-6 py-2 rounded text-xl font-semibold h-[46px] flex items-center">
                         ₱ {totalPrice.toLocaleString()}
                     </div>
@@ -113,11 +128,11 @@ const PartsList = () => {
             {/* Buttons */}
             <div className="flex justify-between mt-4 max-w-7xl w-full mx-auto">
                 <button
-                onClick={() => navigate('/automate')}
-                className="bg-transparent border border-white text-white font-semibold px-8 py-3 rounded-lg hover:bg-white hover:text-pink-500 transition-colors duration-200">
+                    onClick={() => navigate('/automate')}
+                    className="bg-transparent border border-white text-white font-semibold px-8 py-3 rounded-lg hover:bg-white hover:text-pink-500 transition-colors duration-200">
                     Back
                 </button>
-                <button 
+                <button
                     onClick={() => navigate('/ask', { state: { parts: parts } })}
                     className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors duration-200">
                     Ask AI
@@ -126,17 +141,17 @@ const PartsList = () => {
 
             {/* Image Zoom Modal */}
             {zoomedImage && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
                     onClick={() => setZoomedImage(null)}
                 >
                     <div className="relative max-w-3xl max-h-screen">
-                        <img 
-                            src={zoomedImage} 
+                        <img
+                            src={zoomedImage}
                             alt="Zoomed part"
                             className="max-w-full max-h-screen object-contain rounded-lg"
                         />
-                        <button 
+                        <button
                             className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition-colors"
                             onClick={() => setZoomedImage(null)}
                         >
