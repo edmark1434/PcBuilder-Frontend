@@ -97,9 +97,14 @@ const PartsList = () => {
                     </div>
                 </div>
 
-                {/* Total Price */}
-                <div className="flex items-center justify-end mb-6">
-                    <div className="border border-green-500 text-green-400 px-6 py-2 rounded text-xl font-semibold">
+                 {/* Total Price */}
+                <div className="flex items-center justify-between mb-6">
+                    <button 
+                        className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
+                    >
+                        Download List
+                    </button>
+                    <div className="border border-green-500 text-green-400 px-6 py-2 rounded text-xl font-semibold h-[46px] flex items-center">
                         ₱ {totalPrice.toLocaleString()}
                     </div>
                 </div>
@@ -113,8 +118,8 @@ const PartsList = () => {
                     Back
                 </button>
                 <button 
-                onClick={() => navigate('/ask')}
-                className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors duration-200">
+                    onClick={() => navigate('/ask', { state: { parts: parts } })}
+                    className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors duration-200">
                     Ask AI
                 </button>
             </div>
