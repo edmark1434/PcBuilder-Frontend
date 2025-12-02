@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const AskAI = () => {
     const navigate = useNavigate();
@@ -50,7 +50,9 @@ const AskAI = () => {
             {/* Header - Always Fixed */}
             <div className="p-8">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
+                    <Link to="/">
+                        <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
+                    </Link>
                     <button 
                         onClick={handleStartOver}
                         className="text-gray-400 hover:text-white transition-colors"
