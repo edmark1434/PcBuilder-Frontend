@@ -105,7 +105,7 @@ const Automate = () => {
                             Set Your Price Range.
                         </label>
                         <input
-                            type="text"
+                            type="number"
                             value={priceRange}
                             onChange={(e) => setPriceRange(e.target.value)}
                             placeholder="Enter your budget"
