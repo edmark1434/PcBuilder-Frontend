@@ -51,29 +51,36 @@ const PartsList = () => {
                         </button>
                     </div>
 
+                    {/* Parts List - Scrollable */}
                     <div className="flex-1 overflow-y-auto parts-scrollbar">
                         {parts.map((part) => (
                             <div 
                                 key={part.id}
                                 className="flex items-center justify-between px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors"
                             >
-                                <div className="flex items-center gap-7">
-                                    <span className="bg-gray-700 text-white p-2 rounded">
+                                {/* Left group: PartType + Image + Name */}
+                                <div className="flex items-center gap-4">
+                                    {/* Fixed width badge for alignment */}
+                                    <span className="bg-gray-700 text-white px-3 py-2 rounded w-32 text-center text-sm">
                                         {part.partType}
                                     </span>
 
-                                    {part.image && (
+                                    {/* Image - Always in same position */}
+                                    {part.image ? (
                                         <img 
                                             src={part.image} 
                                             alt={part.name}
                                             onClick={() => setZoomedImage(part.image)}
                                             className="w-12 h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors"
                                         />
+                                    ) : (
+                                        <div className="w-12 h-12" /> // Placeholder to maintain spacing
                                     )}
 
                                     <span className="text-gray-300">{part.name}</span>
                                 </div>
 
+                                {/* Right group: Price + Delete */}
                                 <div className="flex items-center gap-4">
                                     <span className="text-green-400 font-medium">₱ {part.price.toLocaleString()}</span>
                                     <button
