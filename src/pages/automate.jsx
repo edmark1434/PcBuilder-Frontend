@@ -92,23 +92,28 @@ const Automate = () => {
                         <label className="block text-white mb-4">
                             What Will You Use This PC For?
                         </label>
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex flex-wrap justify-between">
                             {useCases.map((useCase) => {
                                 const isSelected = isMixedUse
                                     ? selectedUses.includes(useCase)
                                     : selectedUse === useCase;
 
                                 return (
-                                    <button
+                                    <div
                                         key={useCase}
-                                        onClick={() => handleUseCaseClick(useCase)}
-                                        className={`px-6 py-2 rounded-full border-2 transition-colors duration-200 ${isSelected
-                                            ? 'bg-white text-black border-white'
-                                            : 'bg-transparent text-white border-white hover:bg-white hover:text-black'
-                                            }`}
+                                        className="flex items-center justify-center w-40 h-12 mb-4"
                                     >
-                                        {useCase}
-                                    </button>
+                                        <button
+                                            onClick={() => handleUseCaseClick(useCase)}
+                                            className={`w-full h-full rounded-full transition-colors duration-200
+                                                ${isSelected
+                                                    ? 'bg-white text-black border-2 border-white'
+                                                    : 'bg-transparent text-white border-2 border-white hover:bg-white hover:text-black'
+                                                }`}
+                                        >
+                                            {useCase}
+                                        </button>
+                                    </div>
                                 );
                             })}
                         </div>
