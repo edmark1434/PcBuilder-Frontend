@@ -17,7 +17,7 @@ const PartsList = () => {
         { id: 8, partType: 'Power Supply', name: 'EVGA 650W Gold', price: 3500, image: '' },
         { id: 9, partType: 'Case Fan', name: 'Noctua NF-A12', price: 1000, image: '' }
     ]);
-    
+
     const [zoomedImage, setZoomedImage] = useState(null);
     const [likedBuilds, setLikedBuilds] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
@@ -59,12 +59,12 @@ const PartsList = () => {
     useEffect(() => {
         const storedData = sessionStorage.getItem('builds');
         console.log('Stored data:', storedData); // Debug log
-        
+
         if (storedData) {
             try {
                 const data = JSON.parse(storedData);
                 console.log('Parsed data:', data); // Debug log
-                
+
                 // Check if we have the full response with builds array
                 if (data && data.builds && Array.isArray(data.builds)) {
                     setAllBuilds(data.builds);
@@ -72,7 +72,7 @@ const PartsList = () => {
                         current: 1,
                         total: data.builds.length
                     });
-                    
+
                     // Display first build
                     if (data.builds.length > 0) {
                         const firstBuild = data.builds[0];
@@ -95,17 +95,17 @@ const PartsList = () => {
             console.log('No builds found in session storage');
         }
     }, []);
-    const handleAskAI = async() => {
+    const handleAskAI = async () => {
         const currentBuild = allBuilds[currentBuildIndex];
         sessionStorage.setItem('currentBuild', JSON.stringify(currentBuild));
         navigate('/ask');
     }
     const generateNextBuild = () => {
         if (allBuilds.length === 0) return;
-        
+
         const nextIndex = (currentBuildIndex + 1) % allBuilds.length;
         setCurrentBuildIndex(nextIndex);
-        
+
         const nextBuild = allBuilds[nextIndex];
         // Directly use the parts array from the response
         const formattedParts = nextBuild.parts.map(part => ({
@@ -115,7 +115,7 @@ const PartsList = () => {
         }));
         setParts(formattedParts);
         setTotalPrice(nextBuild.total_price);
-        
+
         setBuildsCount(prev => ({
             ...prev,
             current: nextIndex + 1
@@ -124,7 +124,7 @@ const PartsList = () => {
 
     const toggleLike = () => {
         const buildId = currentBuildIndex;
-        
+
         if (likedBuilds.includes(buildId)) {
             setLikedBuilds(likedBuilds.filter(id => id !== buildId));
         } else {
@@ -139,14 +139,14 @@ const PartsList = () => {
         // Create CSV content
         let csvContent = "data:text/csv;charset=utf-8,";
         csvContent += "Part Type,Component Name,Price,Product Link\n";
-        
+
         currentBuild.parts.forEach(part => {
             csvContent += `${formatPartType(part.partType)},"${part.name}",$${part.price},"${part.product}"\n`;
         });
-        
+
         csvContent += `\nTotal Price,$${currentBuild.total_price}\n`;
         csvContent += `Build ${currentBuildIndex + 1} of ${allBuilds.length}\n`;
-        
+
         // Create download link
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -166,9 +166,6 @@ const PartsList = () => {
             <div className="flex-1 max-w-7xl w-full mx-auto border border-gray-600 rounded-lg p-6 flex flex-col overflow-hidden">
                 {/* Build Counter */}
                 <div className="mb-4 flex justify-between items-center">
-                    <div className="text-gray-300">
-                        Build {buildsCount.current} of {buildsCount.total}
-                    </div>
                     {likedBuilds.length > 0 && (
                         <div className="text-pink-500 text-sm">
                             ❤️ {likedBuilds.length} build{likedBuilds.length !== 1 ? 's' : ''} liked
@@ -194,7 +191,7 @@ const PartsList = () => {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            <span className="font-regular">Next Build</span>
+                            <span className="font-regular">Generate Again</span>
                         </button>
                     </div>
 
@@ -297,20 +294,20 @@ const PartsList = () => {
                     className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4"
                     onClick={() => setZoomedImage(null)}
                 >
+                    <button
+                        className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                        onClick={() => setZoomedImage(null)}
+                    >
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                     <div className="relative max-w-3xl max-h-screen">
                         <img
                             src={zoomedImage}
                             alt="Zoomed part"
                             className="max-w-full max-h-screen object-contain rounded-lg"
                         />
-                        <button
-                            className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 transition-colors"
-                            onClick={() => setZoomedImage(null)}
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
                     </div>
                 </div>
             )}

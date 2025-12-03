@@ -270,11 +270,11 @@ const AskAI = () => {
                         <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
                     </Link>
                     <div className="flex items-center gap-6">
-                        {currentBuild && (
+                        {/* {currentBuild && (
                             <div className="text-sm text-gray-400">
                                 Build Total: <span className="text-green-400 font-semibold">${currentBuild.total_price}</span>
                             </div>
-                        )}
+                        )} */}
                         <button 
                             onClick={handleStartOver}
                             className="text-gray-400 hover:text-white transition-colors"
