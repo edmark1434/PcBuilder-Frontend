@@ -30,7 +30,7 @@ const PartsList = () => {
     const [loading, setLoading] = useState(false);
 
     // Base API URL - update this to match your backend
-    const API_BASE_URL = 'http://localhost:8000/api';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Fix image URLs by adding https: prefix if needed
     const fixImageUrl = (url) => {

@@ -8,7 +8,7 @@ const AskAI = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [currentBuild, setCurrentBuild] = useState(null);
     const messagesEndRef = useRef(null);
-
+    const BASE_URL = import.meta.env.VITE_API_BASE_URL;
     // Load the saved build from session storage on component mount
     useEffect(() => {
         const savedBuild = sessionStorage.getItem('currentBuild');
@@ -114,7 +114,7 @@ const AskAI = () => {
 
         try {
             // Send message to your API endpoint
-            const response = await fetch("http://127.0.0.1:8000/api/askAI", {
+            const response = await fetch(`${BASE_URL}/askAI`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

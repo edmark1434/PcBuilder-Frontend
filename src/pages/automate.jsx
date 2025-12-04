@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/logo';
-
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const Automate = () => {
     const navigate = useNavigate();
     const [selectedUse, setSelectedUse] = useState('');
@@ -13,7 +13,7 @@ const Automate = () => {
 
     useEffect(() => {
         const fetchList = async () => {
-            const response = await fetch("http://127.0.0.1:8000/api/category");
+            const response = await fetch(`${BASE_URL}/category`);
             const res = await response.json();
             const keys = res.map(item => Object.keys(item)[0]);
             const result = {};
@@ -68,7 +68,7 @@ const Automate = () => {
         setIsModalOpen(true);
 
         try {
-            const response = await fetch("http://127.0.0.1:8000/api/min-price", {
+            const response = await fetch(`${BASE_URL}/min-price`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
