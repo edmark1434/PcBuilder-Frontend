@@ -330,31 +330,6 @@ const PartsList = () => {
         }
     };
 
-    // const handleDownload = () => {
-    //     const currentBuild = allBuilds[currentBuildIndex];
-    //     if (!currentBuild) return;
-
-    //     // Create CSV content
-    //     let csvContent = "data:text/csv;charset=utf-8,";
-    //     csvContent += "Part Type,Component Name,Price,Product Link\n";
-
-    //     currentBuild.parts.forEach(part => {
-    //         csvContent += `${formatPartType(part.partType)},"${part.name}",$${part.price},"${part.product}"\n`;
-    //     });
-
-    //     csvContent += `\nTotal Price,$${currentBuild.total_price}\n`;
-    //     csvContent += `Build ${currentBuildIndex + 1} of ${allBuilds.length}\n`;
-
-    //     // Create download link
-    //     const encodedUri = encodeURI(csvContent);
-    //     const link = document.createElement("a");
-    //     link.setAttribute("href", encodedUri);
-    //     link.setAttribute("download", `pc-build-${currentBuildIndex + 1}.csv`);
-    //     document.body.appendChild(link);
-    //     link.click();
-    //     document.body.removeChild(link);
-    // };
-
     const handlePartClick = async (part) => {
         setSelectedPart(part);
         setShowPartModal(true);
@@ -457,13 +432,13 @@ const PartsList = () => {
                         {parts.map((part, index) => (
                             <div
                                 key={`${part.id}-${index}`}
-                                className="flex items-center justify-between px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer"
+                                className="flex items-center justify-between px-2 sm:px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer gap-2"
                                 onClick={() => handlePartClick(part)}
                             >
                                 {/* Left group: PartType + Image + Name */}
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                                     {/* Fixed width badge for alignment */}
-                                    <span className="bg-gray-700 text-white px-3 py-2 rounded w-32 text-center text-sm">
+                                    <span className="bg-gray-700 text-white px-2 sm:px-3 py-2 rounded w-24 sm:w-32 text-center text-xs sm:text-sm flex-shrink-0">
                                         {part.partType}
                                     </span>
 
@@ -476,22 +451,22 @@ const PartsList = () => {
                                                 e.stopPropagation();
                                                 setZoomedImage(part.image);
                                             }}
-                                            className="w-12 h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors"
+                                            className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors flex-shrink-0"
                                             onError={(e) => {
                                                 e.target.style.display = 'none';
-                                                e.target.parentElement.innerHTML = '<div class="w-12 h-12"></div>';
+                                                e.target.parentElement.innerHTML = '<div class="w-10 h-10 sm:w-12 sm:h-12"></div>';
                                             }}
                                         />
                                     ) : (
-                                        <div className="w-12 h-12" /> // Placeholder to maintain spacing
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" /> // Placeholder to maintain spacing
                                     )}
 
-                                    <span className="text-gray-300">{part.name}</span>
+                                    <span className="text-gray-300 text-sm sm:text-base truncate min-w-0" title={part.name}>{part.name}</span>
                                 </div>
 
                                 {/* Right group: Price */}
-                                <div className="flex items-center gap-4">
-                                    <span className="text-green-400 font-medium">$ {part.price}</span>
+                                <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                                    <span className="text-green-400 font-medium text-sm sm:text-base">$ {part.price}</span>
                                     {/* Shop cart icon for quick buy */}
                                     {part.product && (
                                         <button
@@ -502,7 +477,7 @@ const PartsList = () => {
                                             className="text-gray-400 hover:text-pink-500 transition-colors p-1"
                                             title="View product"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
                                             </svg>
                                         </button>
@@ -514,39 +489,33 @@ const PartsList = () => {
                 </div>
 
                 <div className="flex items-center justify-between mb-6">
-                    {/* Left group: Download + Heart */}
+                    {/* Left group: Download button */}
                     <div className="flex items-center gap-4">
-                        {/* <button
-                            onClick={handleDownload}
-                            className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
-                        >
-                            Download List
-                        </button> */}
                         <button
                             onClick={generatePDF}
-                            className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
+                            className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px] text-sm sm:text-base whitespace-nowrap"
                         >
                             Download List
                         </button>
                     </div>
 
                     {/* Total Price */}
-                    <div className="border border-green-500 text-green-400 px-6 py-2 rounded text-xl font-semibold h-[46px] flex items-center">
+                    <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex items-center justify-center">
                         $ {totalPrice.toLocaleString()}
                     </div>
                 </div>
             </div>
 
             {/* Buttons */}
-            <div className="flex justify-between mt-4 max-w-7xl w-full mx-auto">
+            <div className="flex justify-between gap-3 mt-4 max-w-7xl w-full mx-auto">
                 <button
                     onClick={() => navigate('/automate')}
-                    className="bg-transparent border border-white text-white font-semibold px-8 py-3 rounded-lg hover:bg-white hover:text-pink-500 transition-colors duration-200">
+                    className="bg-transparent border border-white text-white font-semibold px-6 sm:px-8 py-3 rounded-lg hover:bg-white hover:text-pink-500 transition-colors duration-200">
                     Back
                 </button>
                 <button
                     onClick={handleAskAI}
-                    className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors duration-200">
+                    className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 sm:px-8 py-3 rounded-lg transition-colors duration-200">
                     Ask AI
                 </button>
             </div>
