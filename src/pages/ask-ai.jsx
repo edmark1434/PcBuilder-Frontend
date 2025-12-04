@@ -16,16 +16,16 @@ const AskAI = () => {
             try {
                 const buildData = JSON.parse(savedBuild);
                 setCurrentBuild(buildData);
-                
+
                 // Add initial system message with build details
                 if (buildData.parts && buildData.total_price) {
                     const initialMessage = {
                         role: 'assistant',
                         content: `I've loaded your PC build (Total: $${buildData.total_price}). Here are the components:\n\n` +
-                                 buildData.parts.map(part => 
-                                     `• ${part.partType}: ${part.name} - $${part.price}`
-                                 ).join('\n') +
-                                 '\n\nYou can ask me questions about this build, suggest alternatives, compatibility concerns, or performance expectations.'
+                            buildData.parts.map(part =>
+                                `• ${part.partType}: ${part.name} - $${part.price}`
+                            ).join('\n') +
+                            '\n\nYou can ask me questions about this build, suggest alternatives, compatibility concerns, or performance expectations.'
                     };
                     setMessages([initialMessage]);
                 }
@@ -47,114 +47,133 @@ const AskAI = () => {
         navigate('/automate');
     };
 
+    const determineSentiment = (text) => {
+        const lowerText = text.toLowerCase();
+
+        // BAD keywords
+        if (lowerText.includes("bad") || lowerText.includes("terrible") || lowerText.includes("poor") || lowerText.includes("problem") || lowerText.includes("slow")) {
+            return 'bad';
+        }
+        // GOOD keywords
+        else if (lowerText.includes("good") || lowerText.includes("great") || lowerText.includes("excellent") || lowerText.includes("fast") || lowerText.includes("awesome") || lowerText.includes("solid")) {
+            return 'good';
+        }
+        // Everything else is neutral
+        else {
+            return 'neutral';
+        }
+    };
+
     const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+        if (!inputValue.trim()) return;
 
-    const userMessage = { role: 'user', content: inputValue };
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
+        const userMessage = { role: 'user', content: inputValue };
+        setMessages(prev => [...prev, userMessage]);
+        setInputValue('');
+        setIsLoading(true);
 
-    // Transform the build data to match backend format
-    const transformBuildFormat = (buildData) => {
-        if (!buildData || !buildData.parts) return {};
-        
-        const transformedBuild = {};
-        
-        // Map each part type to its name
-        buildData.parts.forEach(part => {
-            const partTypeKey = part.partType.toLowerCase().replace(' ', '_');
-            
-            // Handle special cases for part type mapping
-            const typeMap = {
-                'cpu': 'cpu',
-                'motherboard': 'motherboard',
-                'ram': 'ram',
-                'gpu': 'gpu',
-                'cpu_cooler': 'cpu_cooler',
-                'cpu cooler': 'cpu_cooler',
-                'storage': 'storage',
-                'psu': 'psu',
-                'power supply': 'psu',
-                'pc_case': 'pc_case',
-                'case': 'pc_case'
-            };
-            
-            const backendKey = typeMap[partTypeKey] || partTypeKey;
-            transformedBuild[backendKey] = part.name;
-        });
-        
-        return transformedBuild;
-    };
+        // Transform the build data to match backend format
+        const transformBuildFormat = (buildData) => {
+            if (!buildData || !buildData.parts) return {};
 
-    // Prepare the data in the format your backend expects
-    const requestData = {
-        question: inputValue,
-        build: transformBuildFormat(currentBuild)
-    };
+            const transformedBuild = {};
 
-    console.log('Sending to backend:', requestData);
+            // Map each part type to its name
+            buildData.parts.forEach(part => {
+                const partTypeKey = part.partType.toLowerCase().replace(' ', '_');
 
-    try {
-        // Send message to your API endpoint
-        const response = await fetch("http://127.0.0.1:8000/api/askAI", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(requestData)
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            console.log('API response:', result);
-            
-            // Handle different response formats
-            let aiResponse = "I've processed your question about the PC build.";
-            
-            if (result.message) {
-                // If response has a message object with short_sentence_answer and detailed_answer
-                if (typeof result.message === 'object' && result.message.detailed_answer) {
-                    aiResponse = result.message.detailed_answer;
-                    // You could also show both: aiResponse = `${result.message.short_sentence_answer}\n\n${result.message.detailed_answer}`;
-                } 
-                // If message is a string
-                else if (typeof result.message === 'string') {
-                    aiResponse = result.message;
+                // Handle special cases for part type mapping
+                const typeMap = {
+                    'cpu': 'cpu',
+                    'motherboard': 'motherboard',
+                    'ram': 'ram',
+                    'gpu': 'gpu',
+                    'cpu_cooler': 'cpu_cooler',
+                    'cpu cooler': 'cpu_cooler',
+                    'storage': 'storage',
+                    'psu': 'psu',
+                    'power supply': 'psu',
+                    'pc_case': 'pc_case',
+                    'case': 'pc_case'
+                };
+
+                const backendKey = typeMap[partTypeKey] || partTypeKey;
+                transformedBuild[backendKey] = part.name;
+            });
+
+            return transformedBuild;
+        };
+
+        // Prepare the data in the format your backend expects
+        const requestData = {
+            question: inputValue,
+            build: transformBuildFormat(currentBuild)
+        };
+
+        console.log('Sending to backend:', requestData);
+
+        try {
+            // Send message to your API endpoint
+            const response = await fetch("http://127.0.0.1:8000/api/askAI", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('API response:', result);
+
+                // Handle different response formats
+                let aiResponse = "I've processed your question about the PC build.";
+
+                if (result.message) {
+                    // If response has a message object with short_sentence_answer and detailed_answer
+                    if (typeof result.message === 'object' && result.message.detailed_answer) {
+                        aiResponse = result.message.detailed_answer;
+                        // You could also show both: aiResponse = `${result.message.short_sentence_answer}\n\n${result.message.detailed_answer}`;
+                    }
+                    // If message is a string
+                    else if (typeof result.message === 'string') {
+                        aiResponse = result.message;
+                    }
+                } else if (result.response) {
+                    aiResponse = result.response;
+                } else if (result.answer) {
+                    aiResponse = result.answer;
+                } else if (result.detailed_answer) {
+                    aiResponse = result.detailed_answer;
+                } else if (result.short_sentence_answer) {
+                    aiResponse = result.short_sentence_answer;
                 }
-            } else if (result.response) {
-                aiResponse = result.response;
-            } else if (result.answer) {
-                aiResponse = result.answer;
-            } else if (result.detailed_answer) {
-                aiResponse = result.detailed_answer;
-            } else if (result.short_sentence_answer) {
-                aiResponse = result.short_sentence_answer;
+
+                const aiMessage = {
+                    role: 'assistant',
+                    content: aiResponse,
+                    sentiment: determineSentiment(aiResponse) // <-- add this line
+                };
+                setMessages(prev => [...prev, aiMessage]);
+            } else {
+                const errorText = await response.text();
+                console.error('API error:', errorText);
+                throw new Error('API request failed');
             }
-            
+        } catch (err) {
+            console.log('Error:', err);
+            // Fallback to simulated response if API fails
             const aiMessage = {
                 role: 'assistant',
-                content: aiResponse
+                content: "I'm having trouble connecting to the AI service. Based on your components, this looks like a solid build. The RTX 3060 should handle 1440p gaming well, but for 4K gaming you might need to lower settings in demanding titles.",
+                sentiment: determineSentiment("I'm having trouble connecting to the AI service. Based on your components, this looks like a solid build. The RTX 3060 should handle 1440p gaming well, but for 4K gaming you might need to lower settings in demanding titles.")
             };
             setMessages(prev => [...prev, aiMessage]);
-        } else {
-            const errorText = await response.text();
-            console.error('API error:', errorText);
-            throw new Error('API request failed');
+        } finally {
+            setIsLoading(false);
         }
-    } catch (err) {
-        console.log('Error:', err);
-        // Fallback to simulated response if API fails
-        const aiMessage = {
-            role: 'assistant',
-            content: "I'm having trouble connecting to the AI service. Based on your components, this looks like a solid build. The RTX 3060 should handle 1440p gaming well, but for 4K gaming you might need to lower settings in demanding titles."
-        };
-        setMessages(prev => [...prev, aiMessage]);
-    } finally {
-        setIsLoading(false);
-    }
-};
+    };
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -197,7 +216,7 @@ const AskAI = () => {
                             Build loaded from Parts List
                         </div>
                     </div>
-                    
+
                     {/* Parts List */}
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-2 parts-scrollbar">
                         {currentBuild.parts.map((part, index) => (
@@ -275,11 +294,11 @@ const AskAI = () => {
                                 Build Total: <span className="text-green-400 font-semibold">${currentBuild.total_price}</span>
                             </div>
                         )} */}
-                        <button 
+                        <button
                             onClick={handleStartOver}
                             className="text-gray-400 hover:text-white transition-colors"
                         >
-                            Start Over  
+                            Start Over
                         </button>
                     </div>
                 </div>
@@ -293,7 +312,7 @@ const AskAI = () => {
                         <h2 className="text-2xl font-semibold text-center mb-8">
                             Ask me about your build!
                         </h2>
-                        
+
                         {renderBuildSummary()}
                     </div>
                 ) : (
@@ -307,14 +326,20 @@ const AskAI = () => {
                                         key={index}
                                         className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
                                     >
-                                        <div
-                                            className={`max-w-3xl rounded-lg p-4 ${
-                                                message.role === 'user'
-                                                    ? 'bg-gray-800 text-white'
-                                                    : 'bg-gray-900 text-gray-200'
+                                        <div className={`max-w-3xl rounded-lg p-4 relative ${message.role === 'user'
+                                            ? 'bg-gray-800 text-white'
+                                            : 'bg-gray-900 text-gray-200'
                                             }`}
                                         >
                                             <p className="whitespace-pre-wrap">{message.content}</p>
+
+                                            {/* Sentiment Circle */}
+                                            {message.role === 'assistant' && message.sentiment && (
+                                                <span className={`absolute top-2 right-2 w-2 h-1 rounded-full ${message.sentiment === 'good' ? 'bg-green-500' :
+                                                    message.sentiment === 'neutral' ? 'bg-yellow-400' :
+                                                        'bg-red-500'
+                                                    }`} />
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -331,6 +356,27 @@ const AskAI = () => {
                                 )}
                                 <div ref={messagesEndRef} />
                             </div>
+                        </div>
+
+                        {/* Suggested Questions - Always visible */}
+                        <div className="max-w-7xl mx-auto px-8 py-4 grid grid-cols-2 gap-3">
+                            {[
+                                "Is this build good for gaming?",
+                                "Suggest cheaper alternatives",
+                                "Any compatibility issues?",
+                                "How to improve performance?"
+                            ].map((question, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => {
+                                        setInputValue(question);
+                                        setTimeout(() => handleSendMessage(), 50);
+                                    }}
+                                    className="text-left bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-sm transition-colors border border-gray-700"
+                                >
+                                    {question}
+                                </button>
+                            ))}
                         </div>
 
                         {/* Input Area - Bottom */}

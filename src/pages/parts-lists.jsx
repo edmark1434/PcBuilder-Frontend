@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/logo';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';    
 
 const PartsList = () => {
     const navigate = useNavigate();
@@ -92,7 +94,7 @@ const PartsList = () => {
         try {
             setLoading(true);
             const endpoint = getApiEndpoint(part.partType, part.id);
-            
+
             if (!endpoint) {
                 console.log('No API endpoint for part type:', part.partType);
                 setPartDetails(part); // Use basic part info if no endpoint
@@ -103,7 +105,7 @@ const PartsList = () => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             const data = await response.json();
             setPartDetails(data);
         } catch (error) {
@@ -328,30 +330,30 @@ const PartsList = () => {
         }
     };
 
-    const handleDownload = () => {
-        const currentBuild = allBuilds[currentBuildIndex];
-        if (!currentBuild) return;
+    // const handleDownload = () => {
+    //     const currentBuild = allBuilds[currentBuildIndex];
+    //     if (!currentBuild) return;
 
-        // Create CSV content
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Part Type,Component Name,Price,Product Link\n";
+    //     // Create CSV content
+    //     let csvContent = "data:text/csv;charset=utf-8,";
+    //     csvContent += "Part Type,Component Name,Price,Product Link\n";
 
-        currentBuild.parts.forEach(part => {
-            csvContent += `${formatPartType(part.partType)},"${part.name}",$${part.price},"${part.product}"\n`;
-        });
+    //     currentBuild.parts.forEach(part => {
+    //         csvContent += `${formatPartType(part.partType)},"${part.name}",$${part.price},"${part.product}"\n`;
+    //     });
 
-        csvContent += `\nTotal Price,$${currentBuild.total_price}\n`;
-        csvContent += `Build ${currentBuildIndex + 1} of ${allBuilds.length}\n`;
+    //     csvContent += `\nTotal Price,$${currentBuild.total_price}\n`;
+    //     csvContent += `Build ${currentBuildIndex + 1} of ${allBuilds.length}\n`;
 
-        // Create download link
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `pc-build-${currentBuildIndex + 1}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+    //     // Create download link
+    //     const encodedUri = encodeURI(csvContent);
+    //     const link = document.createElement("a");
+    //     link.setAttribute("href", encodedUri);
+    //     link.setAttribute("download", `pc-build-${currentBuildIndex + 1}.csv`);
+    //     document.body.appendChild(link);
+    //     link.click();
+    //     document.body.removeChild(link);
+    // };
 
     const handlePartClick = async (part) => {
         setSelectedPart(part);
@@ -364,6 +366,52 @@ const PartsList = () => {
         if (productUrl) {
             window.open(productUrl, '_blank', 'noopener,noreferrer');
         }
+    };
+
+    const generatePDF = () => {
+        if (!parts || parts.length === 0) {
+            alert("No parts to download!");
+            return;
+        }
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        // Title
+        pdf.setFontSize(22);
+        pdf.setFont(undefined, 'bold');
+        pdf.text("AutoBuild PC", 105, 20, { align: "center" });
+
+        // Table
+        const tableColumn = ["Part Type", "Component Name", "Price"];
+        const tableRows = parts.map(part => [
+            part.partType,
+            part.name,
+            `$${part.price.toLocaleString()}`
+        ]);
+
+        autoTable(pdf, {
+            startY: 35,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'grid',
+            headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+            bodyStyles: { textColor: 0 },
+            styles: { fontSize: 12, cellPadding: 3 },
+            columnStyles: {
+                0: { cellWidth: 35 },
+                1: { cellWidth: 110 },
+                2: { cellWidth: 30, halign: 'right' }
+            }
+        });
+
+        // Total price
+        const finalY = pdf.lastAutoTable.finalY + 10;
+        pdf.setFontSize(14);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Total Price: $${totalPrice.toLocaleString()}`, 15, finalY);
+
+        // Save PDF
+        pdf.save("AutoBuildPC_Build.pdf");
     };
 
     const isLiked = likedBuilds.includes(currentBuildIndex);
@@ -468,14 +516,18 @@ const PartsList = () => {
                 <div className="flex items-center justify-between mb-6">
                     {/* Left group: Download + Heart */}
                     <div className="flex items-center gap-4">
-                        <button
+                        {/* <button
                             onClick={handleDownload}
                             className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
                         >
                             Download List
+                        </button> */}
+                        <button
+                            onClick={generatePDF}
+                            className="bg-transparent border border-white text-white font-semibold px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px]"
+                        >
+                            Download List
                         </button>
-
-                        
                     </div>
 
                     {/* Total Price */}
@@ -506,9 +558,10 @@ const PartsList = () => {
                     onClick={() => setShowPartModal(false)}
                 >
                     <div
-                        className="bg-gray-900 border border-gray-700 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
+                        className="bg-gray-900 border border-gray-700 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto parts-scrollbar"
                         onClick={(e) => e.stopPropagation()}
                     >
+
                         {/* Modal Header */}
                         <div className="flex items-center justify-between p-4 border-b border-gray-700">
                             <h3 className="text-lg font-semibold">Part Details</h3>
@@ -563,7 +616,7 @@ const PartsList = () => {
                                         <div>
                                             <div className="text-sm text-gray-400">Price</div>
                                             <div className="text-2xl font-bold text-green-400">
-                                                $ {partDetails?.price || selectedPart.price}
+                                                {partDetails?.price || selectedPart.price}
                                             </div>
                                         </div>
 
