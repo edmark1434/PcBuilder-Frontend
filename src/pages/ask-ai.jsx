@@ -153,7 +153,7 @@ const AskAI = () => {
                 const aiMessage = {
                     role: 'assistant',
                     content: aiResponse,
-                    sentiment: determineSentiment(aiResponse) // <-- add this line
+                    sentiment: determineSentiment(aiResponse)
                 };
                 setMessages(prev => [...prev, aiMessage]);
             } else {
@@ -258,24 +258,6 @@ const AskAI = () => {
                         </svg>
                     </button>
                 </div>
-
-                {/* Suggested Questions */}
-                <div className="grid grid-cols-2 gap-3">
-                    {[
-                        "Is this build good for gaming?",
-                        "Suggest cheaper alternatives",
-                        "Any compatibility issues?",
-                        "How to improve performance?"
-                    ].map((question, index) => (
-                        <button
-                            key={index}
-                            onClick={() => setInputValue(question)}
-                            className="text-left bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-sm transition-colors border border-gray-700"
-                        >
-                            {question}
-                        </button>
-                    ))}
-                </div>
             </div>
         );
     };
@@ -333,13 +315,18 @@ const AskAI = () => {
                                         >
                                             <p className="whitespace-pre-wrap">{message.content}</p>
 
-                                            {/* Sentiment Circle */}
-                                            {message.role === 'assistant' && message.sentiment && (
-                                                <span className={`absolute top-2 right-2 w-2 h-1 rounded-full ${message.sentiment === 'good' ? 'bg-green-500' :
-                                                    message.sentiment === 'neutral' ? 'bg-yellow-400' :
-                                                        'bg-red-500'
-                                                    }`} />
-                                            )}
+                                            <div className="flex flex-col">
+                                                {message.sentiment && (
+                                                    <span className={`mt-2 text-sm font-semibold ${message.sentiment === 'good' ? 'text-green-500' :
+                                                        message.sentiment === 'neutral' ? 'text-yellow-400' :
+                                                            'text-red-500'
+                                                        }`}>
+                                                        {message.sentiment === 'good' ? 'Good' :
+                                                            message.sentiment === 'neutral' ? 'Neutral' :
+                                                                'Bad'}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -358,8 +345,8 @@ const AskAI = () => {
                             </div>
                         </div>
 
-                        {/* Suggested Questions - Always visible */}
-                        <div className="max-w-7xl mx-auto px-8 py-4 grid grid-cols-2 gap-3">
+                        {/* Suggested Questions - Move here */}
+                        <div className="flex flex-wrap justify-between gap-3 px-8 py-4">
                             {[
                                 "Is this build good for gaming?",
                                 "Suggest cheaper alternatives",
@@ -368,11 +355,8 @@ const AskAI = () => {
                             ].map((question, index) => (
                                 <button
                                     key={index}
-                                    onClick={() => {
-                                        setInputValue(question);
-                                        setTimeout(() => handleSendMessage(), 50);
-                                    }}
-                                    className="text-left bg-gray-800 hover:bg-gray-700 rounded-lg p-3 text-sm transition-colors border border-gray-700"
+                                    onClick={() => setInputValue(question)}
+                                    className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-sm transition-colors border border-gray-700 text-left flex-1 min-w-[calc(50%-0.375rem)] lg:min-w-0"
                                 >
                                     {question}
                                 </button>
