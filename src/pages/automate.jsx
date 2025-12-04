@@ -13,8 +13,12 @@ const Automate = () => {
 
     useEffect(() => {
         const fetchList = async () => {
-            const response = await fetch(`${BASE_URL}/category`);
-            const res = await response.json();
+            let res = JSON.parse(sessionStorage.getItem('categories'));
+            if (!res){
+                const response = await fetch(`${BASE_URL}/category`);
+                res = await response.json();
+                sessionStorage.setItem('categoies', JSON.stringify(res));
+            }
             const keys = res.map(item => Object.keys(item)[0]);
             const result = {};
             res.forEach(item => {
@@ -66,7 +70,7 @@ const Automate = () => {
 
         setIsLoading(true);
         setIsModalOpen(true);
-
+        sessionStorage.setItem('category', JSON.stringify(selectedUse));
         try {
             const response = await fetch(`${BASE_URL}/min-price`, {
                 method: 'POST',

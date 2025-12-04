@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Logo from '../components/logo';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';    
+import { Heart } from 'lucide-react';
 
 const PartsList = () => {
     const navigate = useNavigate();
@@ -28,6 +29,7 @@ const PartsList = () => {
     const [showPartModal, setShowPartModal] = useState(false);
     const [partDetails, setPartDetails] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isLikedCurrent, setIsLikedCurrent] = useState(false);
 
     // Base API URL - update this to match your backend
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -115,6 +117,116 @@ const PartsList = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Check if current build is liked
+    const checkIfCurrentBuildIsLiked = () => {
+        const likedBuildsData = JSON.parse(localStorage.getItem('favoriteBuilds') || '[]');
+        const currentBuild = allBuilds[currentBuildIndex];
+        
+        if (!currentBuild) return false;
+        
+        return likedBuildsData.some(build => 
+            build.buildId === currentBuildIndex && 
+            build.total_price === currentBuild.total_price
+        );
+    };
+
+    const handleHeartToggle = async () => {
+    const user = JSON.parse(sessionStorage.getItem('user'));
+    const currentBuild = allBuilds[currentBuildIndex];
+    
+    if (!currentBuild) {
+        console.error('No current build found');
+        return;
+    }
+    
+    if (!user || user.isGuest || !user.id) {
+        console.log('User not logged in, redirecting to login');
+        navigate('/login');
+        return;
+    }
+    const category = JSON.parse(sessionStorage.getItem('category'));
+    const buildData = {
+        buildId: Number(currentBuildIndex), // Ensure it's a number
+        total_price: Number(currentBuild.total_price) || 0, 
+        category: category,
+        parts: (currentBuild.parts || []).map(part => ({
+            partType: part.partType || 'Unknown',
+            name: part.name || 'Unnamed Part',
+            price: Number(part.price) || 0,
+            image: part.image || '',
+            id: part.id || 0
+        })),
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        const requestBody = {
+            user_id: Number(user.id), 
+            build_data: buildData
+        };
+
+
+        const response = await fetch(`${API_BASE_URL}/favorites`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        
+        if (response.ok) {
+            saveBuildToLocalStorage(buildData);
+            setIsLikedCurrent(!isLikedCurrent);
+        } else {
+            // Get error details
+            const errorData = await response.json();
+            console.error('Error details:', errorData);
+            
+            if (errorData.errors) {
+                console.error('Validation errors:', errorData.errors);
+                // Show specific error messages
+                const errorMessages = Object.values(errorData.errors).flat().join(', ');
+                alert(`Validation error: ${errorMessages}`);
+            } else {
+                alert(errorData.message || 'Failed to save favorite');
+            }
+        }
+    } catch (error) {
+        console.error('Network error:', error);
+        alert('Network error. Please try again.');
+        
+        saveBuildToLocalStorage(buildData);
+        setIsLikedCurrent(!isLikedCurrent);
+    }
+};
+
+    // Save build to localStorage
+    const saveBuildToLocalStorage = (buildData) => {
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        const likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`) || '[]');
+        
+        // Check if build already exists
+        const existingIndex = likedBuildsData.findIndex(build => 
+            build.buildId === buildData.buildId && 
+            build.total_price === buildData.total_price
+        );
+        
+        if (existingIndex >= 0) {
+            // Remove if already liked
+            likedBuildsData.splice(existingIndex, 1);
+        } else {
+            // Add if not liked
+            likedBuildsData.push(buildData);
+        }
+        
+        localStorage.setItem(`${user.id}favoriteBuilds`, JSON.stringify(likedBuildsData));
+        
+        // Update local state
+        setLikedBuilds(likedBuildsData.map(build => build.buildId));
     };
 
     // Format specifications based on part type
@@ -292,7 +404,18 @@ const PartsList = () => {
         }
     }, []);
 
+    // Update isLikedCurrent when currentBuildIndex changes
+    useEffect(() => {
+        setIsLikedCurrent(checkIfCurrentBuildIsLiked());
+    }, [currentBuildIndex, allBuilds]);
+
     const handleAskAI = async () => {
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        console.log(user);
+        if (!user) {
+            navigate('/login');
+            return;
+        }
         const currentBuild = allBuilds[currentBuildIndex];
         sessionStorage.setItem('currentBuild', JSON.stringify(currentBuild));
         navigate('/ask');
@@ -318,16 +441,6 @@ const PartsList = () => {
             ...prev,
             current: nextIndex + 1
         }));
-    };
-
-    const toggleLike = () => {
-        const buildId = currentBuildIndex;
-
-        if (likedBuilds.includes(buildId)) {
-            setLikedBuilds(likedBuilds.filter(id => id !== buildId));
-        } else {
-            setLikedBuilds([...likedBuilds, buildId]);
-        }
     };
 
     const handlePartClick = async (part) => {
@@ -389,21 +502,13 @@ const PartsList = () => {
         pdf.save("AutoBuildPC_Build.pdf");
     };
 
-    const isLiked = likedBuilds.includes(currentBuildIndex);
-
     return (
         <div className="h-screen bg-black text-white p-8 overflow-hidden flex flex-col">
             <Logo />
             {/* Main Container */}
             <div className="flex-1 max-w-7xl w-full mx-auto border border-gray-600 rounded-lg p-6 flex flex-col overflow-hidden">
-                {/* Build Counter */}
-                <div className="mb-4 flex justify-between items-center">
-                    {likedBuilds.length > 0 && (
-                        <div className="text-pink-500 text-sm">
-                            ❤️ {likedBuilds.length} build{likedBuilds.length !== 1 ? 's' : ''} liked
-                        </div>
-                    )}
-                </div>
+  
+                
 
                 {/* Parts List Container */}
                 <div className="flex-1 border border-gray-700 rounded-lg mb-6 overflow-hidden flex flex-col">
@@ -438,7 +543,7 @@ const PartsList = () => {
                                 {/* Left group: PartType + Image + Name */}
                                 <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                                     {/* Fixed width badge for alignment */}
-                                    <span className="bg-gray-700 text-white px-2 sm:px-3 py-2 rounded w-24 sm:w-32 text-center text-xs sm:text-sm flex-shrink-0">
+                                    <span className="bg-gray-700 text-white px-2 sm:px-3 py-2 rounded w-24 sm:w-32 text-center text-xs sm:text-sm shrink-0">
                                         {part.partType}
                                     </span>
 
@@ -451,21 +556,21 @@ const PartsList = () => {
                                                 e.stopPropagation();
                                                 setZoomedImage(part.image);
                                             }}
-                                            className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors flex-shrink-0"
+                                            className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors shrink-0"
                                             onError={(e) => {
                                                 e.target.style.display = 'none';
                                                 e.target.parentElement.innerHTML = '<div class="w-10 h-10 sm:w-12 sm:h-12"></div>';
                                             }}
                                         />
                                     ) : (
-                                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" /> // Placeholder to maintain spacing
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0" /> // Placeholder to maintain spacing
                                     )}
 
                                     <span className="text-gray-300 text-sm sm:text-base truncate min-w-0" title={part.name}>{part.name}</span>
                                 </div>
 
                                 {/* Right group: Price */}
-                                <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                                     <span className="text-green-400 font-medium text-sm sm:text-base">$ {part.price}</span>
                                     {/* Shop cart icon for quick buy */}
                                     {part.product && (
@@ -497,8 +602,25 @@ const PartsList = () => {
                         >
                             Download List
                         </button>
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={handleHeartToggle}
+                                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
+                            >
+                                <Heart 
+                                    size={24} 
+                                    className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
+                                />
+                            </button>
+                            {likedBuilds.length > 0 && (
+                                <div className="text-pink-500 text-sm">
+                                    ❤️ {likedBuilds.length} build{likedBuilds.length !== 1 ? 's' : ''} liked
+                                </div>
+                            )}
+                        </div>
                     </div>
-
+                    
                     {/* Total Price */}
                     <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex items-center justify-center">
                         $ {totalPrice.toLocaleString()}
