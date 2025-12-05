@@ -13,11 +13,11 @@ const Automate = () => {
 
     useEffect(() => {
         const fetchList = async () => {
-            let res = JSON.parse(sessionStorage.getItem('categories'));
+            let res = JSON.parse(localStorage.getItem('categories'));
             if (!res){
                 const response = await fetch(`${BASE_URL}/category`);
                 res = await response.json();
-                sessionStorage.setItem('categoies', JSON.stringify(res));
+                localStorage.setItem('categories', JSON.stringify(res));
             }
             const keys = res.map(item => Object.keys(item)[0]);
             const result = {};
