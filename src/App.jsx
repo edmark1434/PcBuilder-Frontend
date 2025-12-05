@@ -30,7 +30,6 @@ function App() {
             <Route path="/lists" element={<PartsList/>} />
             <Route path="/ask" element={<AskAI/>} />
             <Route path="/favorites" element={<Favorites/>} />
-            <Route path="/history" element={<History/>} />
             <Route path="/login" element={<Login/>} />
             <Route path="/signup" element={<SignUp />} />
           </Routes>

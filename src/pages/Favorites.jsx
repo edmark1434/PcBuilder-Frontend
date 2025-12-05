@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from '../components/logo';
-import { Heart, Trash2, Download, Eye, Cpu, HardDrive, MemoryStick, Cpu as MotherboardIcon, Fan, Computer, Zap, Layers, Filter } from 'lucide-react';
+import { Heart, Trash2, Download, Eye, Cpu, HardDrive, MemoryStick, Cpu as MotherboardIcon, Fan, Computer, Zap, Layers, Filter, Archive } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -17,6 +17,7 @@ const Favorites = () => {
   const [userId, setUserId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   // Category list
   const categories = [
@@ -44,7 +45,12 @@ const Favorites = () => {
     }
     return url.replace(/\\\//g, '/');
   };
-
+  
+  const handleAskAI = async () => {
+    sessionStorage.setItem('currentBuild', JSON.stringify(selectedFavorite));
+    navigate('/ask');
+  }
+  
   // Format JSON string from database
   const parsePartsData = (partsString) => {
     try {
@@ -311,6 +317,105 @@ const Favorites = () => {
     pdf.save(fileName);
   };
 
+  // Generate PDF for ALL favorites
+  const generateAllFavoritesPDF = () => {
+    if (!filteredFavorites || filteredFavorites.length === 0) {
+      alert("No favorites to download!");
+      return;
+    }
+
+    setDownloadingAll(true);
+
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let currentPage = 1;
+      let startY = 30;
+
+      // Main Title
+      pdf.setFontSize(24);
+      pdf.setFont(undefined, 'bold');
+      pdf.text("All Favorite Builds", 105, 20, { align: "center" });
+      
+      // Subtitle
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: "center" });
+      
+      // Category filter info
+      if (selectedCategory !== 'All') {
+        pdf.text(`Category: ${selectedCategory}`, 105, 40, { align: "center" });
+        startY = 50;
+      }
+
+      // Process each favorite
+      filteredFavorites.forEach((favorite, index) => {
+        // Add new page if not first item (except for first item)
+        if (index > 0) {
+          pdf.addPage();
+          currentPage++;
+          startY = 30;
+        }
+
+        // Build Title
+        pdf.setFontSize(16);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Build #${favorite.build_id + 1}`, 15, startY);
+        
+        // Build Info
+        pdf.setFontSize(11);
+        pdf.setFont(undefined, 'normal');
+        let infoY = startY + 8;
+        
+        pdf.text(`Category: ${favorite.category || 'Uncategorized'}`, 15, infoY);
+        pdf.text(`Saved: ${favorite.formatted_date}`, 105, infoY);
+        pdf.text(`Total: $${favorite.total_price.toLocaleString()}`, 170, infoY);
+        
+        // Parts Table
+        const tableColumn = ["Part Type", "Component Name", "Price"];
+        const tableRows = favorite.parts.map(part => [
+          part.partType,
+          part.name,
+          `$${part.price.toLocaleString()}`
+        ]);
+
+        autoTable(pdf, {
+          startY: infoY + 8,
+          head: [tableColumn],
+          body: tableRows,
+          theme: 'grid',
+          headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
+          bodyStyles: { textColor: 0 },
+          styles: { fontSize: 10, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 120 },
+            2: { cellWidth: 25, halign: 'right' }
+          },
+          margin: { left: 15, right: 15 }
+        });
+
+        // Page footer
+        pdf.setFontSize(8);
+        pdf.setFont(undefined, 'normal');
+        pdf.text(`Page ${currentPage} of ${filteredFavorites.length}`, 105, 290, { align: "center" });
+        pdf.text(`Build ${index + 1} of ${filteredFavorites.length}`, 15, 290);
+      });
+
+      // Save PDF
+      const fileName = selectedCategory === 'All' 
+        ? `All_Favorite_Builds_${new Date().toISOString().split('T')[0]}.pdf`
+        : `Favorite_Builds_${selectedCategory}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      pdf.save(fileName);
+      alert(`Downloaded ${filteredFavorites.length} builds successfully!`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    } finally {
+      setDownloadingAll(false);
+    }
+  };
+
   // View favorite details
   const handleViewDetails = (favorite) => {
     setSelectedFavorite(favorite);
@@ -361,7 +466,29 @@ const Favorites = () => {
             </p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
+            {/* Download All Button */}
+            {filteredFavorites.length > 0 && (
+              <button
+                onClick={generateAllFavoritesPDF}
+                disabled={downloadingAll}
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Download all builds as PDF"
+              >
+                {downloadingAll ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Archive size={18} />
+                    Download All ({filteredFavorites.length})
+                  </>
+                )}
+              </button>
+            )}
+            
             {/* Category Filter Button */}
             <div className="relative">
               <button
@@ -525,15 +652,25 @@ const Favorites = () => {
                       {filteredFavorites.length} build{filteredFavorites.length !== 1 ? 's' : ''} found
                     </p>
                   </div>
-                  <button
-                    onClick={() => filterByCategory('All')}
-                    className="text-gray-400 hover:text-white text-sm flex items-center gap-1"
-                  >
-                    Show all builds
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={generateAllFavoritesPDF}
+                      disabled={downloadingAll}
+                      className="text-green-400 hover:text-green-300 text-sm flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Archive size={14} />
+                      Download All
+                    </button>
+                    <button
+                      onClick={() => filterByCategory('All')}
+                      className="text-gray-400 hover:text-white text-sm flex items-center gap-1"
+                    >
+                      Show all builds
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -733,13 +870,10 @@ const Favorites = () => {
                           Download as PDF
                         </button>
                         <button
-                          onClick={() => {
-                            alert('Build loaded! You can now modify this configuration.');
-                            setShowDetailModal(false);
-                          }}
+                          onClick={handleAskAI}
                           className="w-full bg-transparent border border-white hover:bg-white hover:text-black text-white font-semibold py-3 rounded-lg transition-colors duration-200"
                         >
-                          Use This Build
+                          Ask AI
                         </button>
                       </div>
                     </div>

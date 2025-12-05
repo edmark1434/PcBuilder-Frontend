@@ -121,11 +121,15 @@ const PartsList = () => {
 
     // Check if current build is liked
     const checkIfCurrentBuildIsLiked = () => {
-        const likedBuildsData = JSON.parse(localStorage.getItem('favoriteBuilds') || '[]');
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        let likedBuildsData = JSON.parse(localStorage.getItem(`favoriteBuilds`,[]));
+        if (user) {
+            likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`,[]));
+        }
         const currentBuild = allBuilds[currentBuildIndex];
         
         if (!currentBuild) return false;
-        
+        if (!likedBuildsData) return false;
         return likedBuildsData.some(build => 
             build.buildId === currentBuildIndex && 
             build.total_price === currentBuild.total_price
@@ -613,11 +617,6 @@ const PartsList = () => {
                                     className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
                                 />
                             </button>
-                            {likedBuilds.length > 0 && (
-                                <div className="text-pink-500 text-sm">
-                                    ❤️ {likedBuilds.length} build{likedBuilds.length !== 1 ? 's' : ''} liked
-                                </div>
-                            )}
                         </div>
                     </div>
                     

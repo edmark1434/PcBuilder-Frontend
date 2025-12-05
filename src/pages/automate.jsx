@@ -28,6 +28,7 @@ const Automate = () => {
             setUseCases(keys);
             setUseCaseMinPrice(result);
         };
+        localStorage.removeItem('favoriteBuilds');
         fetchList();
     }, []);
 

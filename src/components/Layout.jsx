@@ -39,13 +39,8 @@ const Layout = ({ children }) => {
       icon: <Heart size={20} />,
       path: '/favorites',
       color: 'text-red-400'
-    },
-    {
-      name: 'History',
-      icon: <History size={20} />,
-      path: '/history',
-      color: 'text-blue-400'
     }
+
   ];
 
   // Navigation items for guest (no sidebar, just top links)
