@@ -1,10 +1,15 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
     const navigate = useNavigate();
-    
+    useEffect(() => {
+        if (sessionStorage.getItem('user')) {
+            navigate('/automate')
+        }
+    },[])
     const handleAutomateBuild = () => {
-        navigate('/automate');
+        navigate('/login');
     };
 
     return (

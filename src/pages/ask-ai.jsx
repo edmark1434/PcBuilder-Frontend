@@ -9,6 +9,7 @@ const AskAI = () => {
     const [currentBuild, setCurrentBuild] = useState(null);
     const messagesEndRef = useRef(null);
     const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    
     // Load the saved build from session storage on component mount
     useEffect(() => {
         const savedBuild = sessionStorage.getItem('currentBuild');
@@ -25,7 +26,8 @@ const AskAI = () => {
                             buildData.parts.map(part =>
                                 `• ${part.partType}: ${part.name} - $${part.price}`
                             ).join('\n') +
-                            '\n\nYou can ask me questions about this build, suggest alternatives, compatibility concerns, or performance expectations.'
+                            '\n\nYou can ask me questions about this build, suggest alternatives, compatibility concerns, or performance expectations. I\'ll provide bulleted responses when appropriate.',
+                        hasBullets: true
                     };
                     setMessages([initialMessage]);
                 }
@@ -51,11 +53,11 @@ const AskAI = () => {
         const lowerText = text.toLowerCase();
 
         // BAD keywords
-        if (lowerText.includes("bad") || lowerText.includes("terrible") || lowerText.includes("poor") || lowerText.includes("problem") || lowerText.includes("slow")) {
+        if (lowerText.includes("bad") || lowerText.includes("terrible") || lowerText.includes("poor") || lowerText.includes("problem") || lowerText.includes("slow") || lowerText.includes("incompatible") || lowerText.includes("bottleneck")) {
             return 'bad';
         }
         // GOOD keywords
-        else if (lowerText.includes("good") || lowerText.includes("great") || lowerText.includes("excellent") || lowerText.includes("fast") || lowerText.includes("awesome") || lowerText.includes("solid")) {
+        else if (lowerText.includes("good") || lowerText.includes("great") || lowerText.includes("excellent") || lowerText.includes("fast") || lowerText.includes("awesome") || lowerText.includes("solid") || lowerText.includes("compatible") || lowerText.includes("recommend")) {
             return 'good';
         }
         // Everything else is neutral
@@ -64,39 +66,97 @@ const AskAI = () => {
         }
     };
 
+    // Format AI response with bullet points
+    const formatAIResponse = (response) => {
+        // Check if response contains bullet points or needs formatting
+        const lines = response.split('\n');
+        let hasBullets = false;
+        
+        // Check for bullet indicators
+        for (const line of lines) {
+            if (line.trim().startsWith('•') || 
+                line.trim().startsWith('-') || 
+                line.includes('Compatibility Score:') ||
+                line.includes('GUIDE:') ||
+                line.includes('Upgrade Priority:') ||
+                line.includes('Value Assessment:')) {
+                hasBullets = true;
+                break;
+            }
+        }
+        
+        if (!hasBullets) {
+            // Check for JSON-like response
+            try {
+                const parsed = JSON.parse(response);
+                if (parsed.detailed_answer) {
+                    // Format JSON response with bullets
+                    let formatted = '';
+                    if (parsed.direct_answer && parsed.direct_answer !== 'N/A') {
+                        formatted += `**${parsed.direct_answer}**\n\n`;
+                    }
+                    if (parsed.detailed_answer) {
+                        const detailedLines = parsed.detailed_answer.split('\n');
+                        formatted += detailedLines.map(line => {
+                            if (line.trim().startsWith('-') || /^\d+\./.test(line.trim())) {
+                                return '• ' + line.trim().replace(/^-|\d+\./, '').trim();
+                            }
+                            return line;
+                        }).join('\n');
+                    }
+                    return { content: formatted, hasBullets: true };
+                }
+            } catch (e) {
+                // Not JSON, continue with regular formatting
+            }
+        }
+        
+        // Format bullets properly
+        const formattedLines = lines.map(line => {
+            let trimmed = line.trim();
+            
+            // Convert various bullet styles to consistent •
+            if (trimmed.startsWith('- ')) {
+                return '• ' + trimmed.substring(2);
+            } else if (/^\d+\.\s/.test(trimmed)) {
+                return '• ' + trimmed.replace(/^\d+\.\s/, '');
+            } else if (trimmed.startsWith('* ')) {
+                return '• ' + trimmed.substring(2);
+            }
+            
+            return line;
+        });
+        
+        return { 
+            content: formattedLines.join('\n'), 
+            hasBullets: hasBullets || response.includes('•') || response.includes('- ')
+        };
+    };
+
     const handleSendMessage = async () => {
         if (!inputValue.trim()) return;
 
-        const userMessage = { role: 'user', content: inputValue };
+        const userMessage = { 
+            role: 'user', 
+            content: inputValue,
+            hasBullets: false
+        };
         setMessages(prev => [...prev, userMessage]);
         setInputValue('');
         setIsLoading(true);
 
-        // Transform the build data to match backend format
+        // Transform the build data
         const transformBuildFormat = (buildData) => {
             if (!buildData || !buildData.parts) return {};
 
             const transformedBuild = {};
-
-            // Map each part type to its name
             buildData.parts.forEach(part => {
                 const partTypeKey = part.partType.toLowerCase().replace(' ', '_');
-
-                // Handle special cases for part type mapping
                 const typeMap = {
-                    'cpu': 'cpu',
-                    'motherboard': 'motherboard',
-                    'ram': 'ram',
-                    'gpu': 'gpu',
-                    'cpu_cooler': 'cpu_cooler',
-                    'cpu cooler': 'cpu_cooler',
-                    'storage': 'storage',
-                    'psu': 'psu',
-                    'power supply': 'psu',
-                    'pc_case': 'pc_case',
-                    'case': 'pc_case'
+                    'cpu': 'cpu', 'motherboard': 'motherboard', 'ram': 'ram', 'gpu': 'gpu',
+                    'cpu_cooler': 'cpu_cooler', 'cpu cooler': 'cpu_cooler', 'storage': 'storage',
+                    'psu': 'psu', 'power supply': 'psu', 'pc_case': 'pc_case', 'case': 'pc_case'
                 };
-
                 const backendKey = typeMap[partTypeKey] || partTypeKey;
                 transformedBuild[backendKey] = part.name;
             });
@@ -104,7 +164,7 @@ const AskAI = () => {
             return transformedBuild;
         };
 
-        // Prepare the data in the format your backend expects
+        // Prepare request data
         const requestData = {
             question: inputValue,
             build: transformBuildFormat(currentBuild)
@@ -113,7 +173,6 @@ const AskAI = () => {
         console.log('Sending to backend:', requestData);
 
         try {
-            // Send message to your API endpoint
             const response = await fetch(`${BASE_URL}/askAI`, {
                 method: 'POST',
                 headers: {
@@ -127,32 +186,49 @@ const AskAI = () => {
                 const result = await response.json();
                 console.log('API response:', result);
 
-                // Handle different response formats
-                let aiResponse = "I've processed your question about the PC build.";
+                let aiResponse = '';
+                let hasBullets = false;
 
-                if (result.message) {
-                    // If response has a message object with short_sentence_answer and detailed_answer
-                    if (typeof result.message === 'object' && result.message.detailed_answer) {
-                        aiResponse = result.message.detailed_answer;
-                        // You could also show both: aiResponse = `${result.message.short_sentence_answer}\n\n${result.message.detailed_answer}`;
+                if (result.success && result.message) {
+                    const message = result.message;
+                    
+                    // Handle different response formats
+                    if (typeof message === 'object') {
+                        if (message.format === 'bulleted' || message.has_bullets) {
+                            aiResponse = message.content;
+                            hasBullets = true;
+                        } else if (message.format === 'qa' && message.direct_answer) {
+                            // For Q&A format
+                            aiResponse = `${message.direct_answer}\n\n${message.detailed_answer}`;
+                            hasBullets = message.has_bullets || false;
+                        } else if (message.content) {
+                            aiResponse = message.content;
+                            hasBullets = message.has_bullets || false;
+                        }
+                    } else if (typeof message === 'string') {
+                        aiResponse = message;
+                        // Check for bullet points in string
+                        hasBullets = message.includes('•') || 
+                                    message.includes('- ') || 
+                                    /^\s*\d+\.\s+/m.test(message) ||
+                                    message.includes('Compatibility Score:') ||
+                                    message.includes('GUIDE:') ||
+                                    message.includes('Upgrade Priority:') ||
+                                    message.includes('Value Assessment:');
                     }
-                    // If message is a string
-                    else if (typeof result.message === 'string') {
-                        aiResponse = result.message;
-                    }
-                } else if (result.response) {
-                    aiResponse = result.response;
-                } else if (result.answer) {
-                    aiResponse = result.answer;
-                } else if (result.detailed_answer) {
-                    aiResponse = result.detailed_answer;
-                } else if (result.short_sentence_answer) {
-                    aiResponse = result.short_sentence_answer;
+                } else {
+                    aiResponse = "I couldn't process your question. Please try again.";
+                }
+
+                // Fallback if no response
+                if (!aiResponse) {
+                    aiResponse = "I've processed your question about the PC build.";
                 }
 
                 const aiMessage = {
                     role: 'assistant',
                     content: aiResponse,
+                    hasBullets: hasBullets,
                     sentiment: determineSentiment(aiResponse)
                 };
                 setMessages(prev => [...prev, aiMessage]);
@@ -163,11 +239,16 @@ const AskAI = () => {
             }
         } catch (err) {
             console.log('Error:', err);
-            // Fallback to simulated response if API fails
+            // Fallback response with bullets
             const aiMessage = {
                 role: 'assistant',
-                content: "I'm having trouble connecting to the AI service. Based on your components, this looks like a solid build. The RTX 3060 should handle 1440p gaming well, but for 4K gaming you might need to lower settings in demanding titles.",
-                sentiment: determineSentiment("I'm having trouble connecting to the AI service. Based on your components, this looks like a solid build. The RTX 3060 should handle 1440p gaming well, but for 4K gaming you might need to lower settings in demanding titles.")
+                content: "I'm having trouble connecting to the AI service. Based on your components:\n\n" +
+                        "• This appears to be a well-balanced build\n" +
+                        "• Components seem compatible on paper\n" +
+                        "• Consider checking specific compatibility details\n" +
+                        "• For gaming, expect good 1440p performance",
+                hasBullets: true,
+                sentiment: 'neutral'
             };
             setMessages(prev => [...prev, aiMessage]);
         } finally {
@@ -180,6 +261,56 @@ const AskAI = () => {
             e.preventDefault();
             handleSendMessage();
         }
+    };
+
+    // Render message content with bullet formatting
+    const renderMessageContent = (content, hasBullets) => {
+        if (!hasBullets) {
+            return <p className="whitespace-pre-wrap">{content}</p>;
+        }
+
+        const lines = content.split('\n');
+        return (
+            <div className="space-y-1">
+                {lines.map((line, index) => {
+                    const trimmed = line.trim();
+                    
+                    // Check if line is a bullet point
+                    const isBullet = trimmed.startsWith('•');
+                    const isHeader = trimmed.includes(':') && !trimmed.startsWith('•') && 
+                                    (trimmed.endsWith(':') || trimmed.includes('Score:') || 
+                                     trimmed.includes('GUIDE:') || trimmed.includes('Priority:') ||
+                                     trimmed.includes('Assessment:'));
+                    
+                    if (isHeader) {
+                        return (
+                            <div key={index} className="font-semibold text-lg text-pink-400 mt-3 mb-1">
+                                {trimmed}
+                            </div>
+                        );
+                    } else if (isBullet) {
+                        const bulletText = trimmed.substring(1).trim();
+                        // Check for sub-bullets (indented bullets)
+                        const isSubBullet = line.startsWith('  •') || line.startsWith('    •');
+                        
+                        return (
+                            <div key={index} className={`flex items-start ${isSubBullet ? 'ml-6' : ''}`}>
+                                <span className="text-pink-400 mr-2 mt-1">•</span>
+                                <span className="flex-1">{bulletText}</span>
+                            </div>
+                        );
+                    } else if (trimmed === '') {
+                        return <div key={index} className="h-3"></div>; // Empty line spacing
+                    } else {
+                        return (
+                            <div key={index} className="whitespace-pre-wrap">
+                                {line}
+                            </div>
+                        );
+                    }
+                })}
+            </div>
+        );
     };
 
     // Render build summary when no messages yet
@@ -271,11 +402,6 @@ const AskAI = () => {
                         <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
                     </Link>
                     <div className="flex items-center gap-6">
-                        {/* {currentBuild && (
-                            <div className="text-sm text-gray-400">
-                                Build Total: <span className="text-green-400 font-semibold">${currentBuild.total_price}</span>
-                            </div>
-                        )} */}
                         <button
                             onClick={handleStartOver}
                             className="text-gray-400 hover:text-white transition-colors"
@@ -313,20 +439,22 @@ const AskAI = () => {
                                             : 'bg-gray-900 text-gray-200'
                                             }`}
                                         >
-                                            <p className="whitespace-pre-wrap">{message.content}</p>
+                                            {/* Message Content */}
+                                            {renderMessageContent(message.content, message.hasBullets)}
 
-                                            <div className="flex flex-col">
-                                                {message.sentiment && (
-                                                    <span className={`mt-2 text-sm font-semibold ${message.sentiment === 'good' ? 'text-green-500' :
-                                                        message.sentiment === 'neutral' ? 'text-yellow-400' :
-                                                            'text-red-500'
+                                            {/* Sentiment Badge */}
+                                            {message.sentiment && (
+                                                <div className="mt-3 pt-2 border-t border-gray-700">
+                                                    <span className={`text-xs font-semibold px-2 py-1 rounded ${message.sentiment === 'good' ? 'bg-green-500/20 text-green-400' :
+                                                        message.sentiment === 'neutral' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        'bg-red-500/20 text-red-400'
                                                         }`}>
-                                                        {message.sentiment === 'good' ? 'Good' :
+                                                        {message.sentiment === 'good' ? 'Positive' :
                                                             message.sentiment === 'neutral' ? 'Neutral' :
-                                                                'Bad'}
+                                                            'Concerns'}
                                                     </span>
-                                                )}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -345,13 +473,15 @@ const AskAI = () => {
                             </div>
                         </div>
 
-                        {/* Suggested Questions - Move here */}
+                        {/* Suggested Questions */}
                         <div className="flex flex-wrap justify-between gap-3 px-8 py-4">
                             {[
-                                "Is this build good for gaming?",
-                                "Suggest cheaper alternatives",
+                                "Compatibity Score and Performance Score for this build",
+                                "Software applications that is highly supported on this build?",
                                 "Any compatibility issues?",
-                                "How to improve performance?"
+                                "How to improve performance?",
+                                "Step-by-step assembly guide",
+                                "Upgrade recommendations"
                             ].map((question, index) => (
                                 <button
                                     key={index}
@@ -372,7 +502,7 @@ const AskAI = () => {
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
                                         onKeyPress={handleKeyPress}
-                                        placeholder="Ask AI about your build..."
+                                        placeholder="Ask AI about your build (I'll provide bulleted responses)..."
                                         className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none"
                                     />
                                     <button
