@@ -67,6 +67,10 @@ const Login = () => {
         window.location.reload();
     };
 
+    const handleForgotPassword = () => {
+        navigate('/forgot-password');
+    };
+
     return (
         <div className="min-h-screen bg-black text-white p-8">
             <Logo />
@@ -95,7 +99,7 @@ const Login = () => {
                             />
                         </div>
                         
-                        <div className="mb-8">
+                        <div className="mb-2">
                             <label className="block text-gray-300 mb-2">Password</label>
                             <input
                                 type="password"
@@ -106,6 +110,17 @@ const Login = () => {
                                 className="w-full bg-transparent border-2 border-gray-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-pink-500 transition-colors"
                                 disabled={isLoading}
                             />
+                        </div>
+                        
+                        {/* Forgot Password Link */}
+                        <div className="mb-6 text-right">
+                            <button
+                                type="button"
+                                onClick={handleForgotPassword}
+                                className="text-sm text-pink-500 hover:text-pink-400 transition-colors font-medium"
+                            >
+                                Forgot password?
+                            </button>
                         </div>
                         
                         <button
@@ -148,8 +163,6 @@ const Login = () => {
                         </div>
                     </form>
                 </div>
-                
-                
             </div>
         </div>
     );
