@@ -30,9 +30,83 @@ const PartsList = () => {
     const [partDetails, setPartDetails] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isLikedCurrent, setIsLikedCurrent] = useState(false);
+    
+    // Currency conversion states
+    const [conversionRate, setConversionRate] = useState(null);
+    const [conversionLoading, setConversionLoading] = useState(false);
+    const [conversionError, setConversionError] = useState(null);
+    const [showPHP, setShowPHP] = useState(false); // Toggle between USD and PHP
 
     // Base API URL - update this to match your backend
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    
+    // Exchange Rate API
+    const EXCHANGE_API_KEY = '391e07669e1a5aa7dd44cc53';
+    const EXCHANGE_API_URL = `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/USD/PHP`;
+
+    // Fetch conversion rate
+    const fetchConversionRate = async () => {
+        try {
+            setConversionLoading(true);
+            setConversionError(null);
+            
+            const response = await fetch(EXCHANGE_API_URL);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch exchange rate: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.result === 'success') {
+                setConversionRate(data.conversion_rate);
+                // Store in localStorage for caching (valid for 1 hour)
+                localStorage.setItem('usd_to_php_rate', JSON.stringify({
+                    rate: data.conversion_rate,
+                    timestamp: Date.now()
+                }));
+            } else {
+                throw new Error(data['error-type'] || 'Failed to get conversion rate');
+            }
+        } catch (error) {
+            console.error('Error fetching conversion rate:', error);
+            setConversionError(error.message);
+            
+            // Try to use cached rate if available
+            const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
+            if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) { // 1 hour cache
+                setConversionRate(cachedRate.rate);
+            }
+        } finally {
+            setConversionLoading(false);
+        }
+    };
+
+    // Convert USD to PHP
+    const convertToPHP = (usdAmount) => {
+        if (!conversionRate || !usdAmount) return 0;
+        return usdAmount * conversionRate;
+    };
+
+    // Format price based on selected currency
+    const formatPrice = (price) => {
+        if (showPHP && conversionRate) {
+            if (typeof price === "string") {
+                price = parseFloat(price.replace(/[^0-9.-]+/g,""));
+            }
+            const phpAmount = convertToPHP(price);
+            return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Format total price with both currencies
+    const formatTotalPrice = () => {
+        if (showPHP && conversionRate) {
+            const phpAmount = convertToPHP(totalPrice);
+            return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return `$${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
 
     // Fix image URLs by adding https: prefix if needed
     const fixImageUrl = (url) => {
@@ -406,6 +480,9 @@ const PartsList = () => {
         } else {
             console.log('No builds found in session storage');
         }
+
+        // Fetch conversion rate on component mount
+        fetchConversionRate();
     }, []);
 
     // Update isLikedCurrent when currentBuildIndex changes
@@ -473,16 +550,30 @@ const PartsList = () => {
         pdf.setFont(undefined, 'bold');
         pdf.text("AutoBuild PC", 105, 20, { align: "center" });
 
+        // Add currency information
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'normal');
+        if (conversionRate) {
+            pdf.text(`Exchange Rate: 1 USD = ${conversionRate.toFixed(4)} PHP`, 105, 30, { align: "center" });
+        }
+
         // Table
-        const tableColumn = ["Part Type", "Component Name", "Price"];
-        const tableRows = parts.map(part => [
-            part.partType,
-            part.name,
-            `$${part.price.toLocaleString()}`
-        ]);
+        const tableColumn = ["Part Type", "Component Name", "Price (USD)", showPHP ? "Price (PHP)" : ""].filter(col => col !== "");
+        const tableRows = parts.map(part => {
+            const row = [
+                part.partType,
+                part.name,
+                `$${part.price.toLocaleString()}`
+            ];
+            if (showPHP && conversionRate) {
+                const phpPrice = convertToPHP(part.price);
+                row.push(`₱${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            }
+            return row;
+        });
 
         autoTable(pdf, {
-            startY: 35,
+            startY: 40,
             head: [tableColumn],
             body: tableRows,
             theme: 'grid',
@@ -491,8 +582,9 @@ const PartsList = () => {
             styles: { fontSize: 12, cellPadding: 3 },
             columnStyles: {
                 0: { cellWidth: 35 },
-                1: { cellWidth: 110 },
-                2: { cellWidth: 30, halign: 'right' }
+                1: { cellWidth: 90 },
+                2: { cellWidth: 30, halign: 'right' },
+                3: { cellWidth: 40, halign: 'right' }
             }
         });
 
@@ -500,7 +592,12 @@ const PartsList = () => {
         const finalY = pdf.lastAutoTable.finalY + 10;
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Total Price: $${totalPrice.toLocaleString()}`, 15, finalY);
+        pdf.text(`Total Price (USD): $${totalPrice.toLocaleString()}`, 15, finalY);
+        
+        if (conversionRate) {
+            const totalPHP = convertToPHP(totalPrice);
+            pdf.text(`Total Price (PHP): ₱${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+        }
 
         // Save PDF
         pdf.save("AutoBuildPC_Build.pdf");
@@ -575,7 +672,16 @@ const PartsList = () => {
 
                                 {/* Right group: Price */}
                                 <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                                    <span className="text-green-400 font-medium text-sm sm:text-base">$ {part.price}</span>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`${showPHP ? 'text-sm text-gray-400' : 'text-green-400 font-medium text-sm sm:text-base'}`}>
+                                            {showPHP && conversionRate ? `$${part.price.toLocaleString()}` : formatPrice(part.price)}
+                                        </span>
+                                        {showPHP && conversionRate && (
+                                            <span className="text-green-400 font-medium text-sm sm:text-base">
+                                                {formatPrice(part.price)}
+                                            </span>
+                                        )}
+                                    </div>
                                     {/* Shop cart icon for quick buy */}
                                     {part.product && (
                                         <button
@@ -597,32 +703,71 @@ const PartsList = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-6">
-                    {/* Left group: Download button */}
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={generatePDF}
-                            className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px] text-sm sm:text-base whitespace-nowrap"
-                        >
-                            Download List
-                        </button>
+                <div className="flex flex-col gap-4 mb-6">
+                    
+                    {/* Action Buttons and Total Price */}
+                    <div className="flex items-center justify-between">
+                        {/* Left group: Download button */}
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={handleHeartToggle}
-                                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                                title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
+                                onClick={generatePDF}
+                                className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px] text-sm sm:text-base whitespace-nowrap"
                             >
-                                <Heart 
-                                    size={24} 
-                                    className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
-                                />
+                                Download List
+                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={handleHeartToggle}
+                                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                    title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
+                                >
+                                    <Heart 
+                                        size={24} 
+                                        className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
+                                    />
+                                </button>
+                            </div>
+                            {/* Currency Toggle Button */}
+                    <div className="flex items-center justify-end">
+                        <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+                            <button
+                                onClick={() => setShowPHP(false)}
+                                className={`px-4 py-2 rounded-md transition-colors ${
+                                    !showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                USD
+                            </button>
+                            <button
+                                onClick={() => setShowPHP(true)}
+                                disabled={!conversionRate || conversionLoading}
+                                className={`px-4 py-2 rounded-md transition-colors ${
+                                    showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                {conversionLoading ? 'Loading...' : 'PHP'}
                             </button>
                         </div>
                     </div>
-                    
-                    {/* Total Price */}
-                    <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex items-center justify-center">
-                        $ {totalPrice.toLocaleString()}
+
+                    {/* Currency Info */}
+                    {conversionRate && (
+                        <div className="text-sm text-gray-400 text-right">
+                            Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
+                        </div>
+                    )}
+
+                        </div>
+                        
+                        {/* Total Price */}
+                        <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex flex-col items-center justify-center">
+                            <div className="text-base">{formatTotalPrice()}</div>
+                            {showPHP && conversionRate && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                    ≈ ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -706,8 +851,13 @@ const PartsList = () => {
                                         <div>
                                             <div className="text-sm text-gray-400">Price</div>
                                             <div className="text-2xl font-bold text-green-400">
-                                                {partDetails?.price || selectedPart.price}
+                                                {formatPrice(partDetails?.price || selectedPart.price)}
                                             </div>
+                                            {conversionRate && (
+                                                <div className="text-sm text-gray-400 mt-1">
+                                                    ≈ {(partDetails?.price || selectedPart.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Specifications */}
