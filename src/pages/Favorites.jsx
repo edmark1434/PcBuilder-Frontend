@@ -45,12 +45,12 @@ const Favorites = () => {
     }
     return url.replace(/\\\//g, '/');
   };
-  
+
   const handleAskAI = async () => {
     sessionStorage.setItem('currentBuild', JSON.stringify(selectedFavorite));
     navigate('/ask');
   }
-  
+
   // Format JSON string from database
   const parsePartsData = (partsString) => {
     try {
@@ -104,7 +104,7 @@ const Favorites = () => {
       let userParam = searchParams.get('user_id');
       let storedUser = JSON.parse(sessionStorage.getItem('user'));
       let finalUserId = userParam || (storedUser && storedUser.id);
-      
+
       if (!finalUserId) {
         setError('User ID is required. Please provide a user_id parameter.');
         setFavorites([]);
@@ -126,17 +126,17 @@ const Favorites = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.data && data.data.favorites) {
         const processedFavorites = data.data.favorites.map(fav => {
           let parts = [];
           let category = '';
-          
+
           if (fav.build_data) {
             try {
               const parsedBuildData = JSON.parse(fav.build_data);
               category = parsedBuildData.category || '';
-              
+
               if (parsedBuildData.parts && Array.isArray(parsedBuildData.parts)) {
                 parts = parsedBuildData.parts;
               }
@@ -144,11 +144,11 @@ const Favorites = () => {
               console.error('Error parsing build_data JSON:', parseError);
             }
           }
-          
+
           if (parts.length === 0 && fav.parts_data) {
             parts = parsePartsData(fav.parts_data);
           }
-          
+
           if (parts.length === 0) {
             parts = [
               fav.cpu_name && { partType: 'CPU', name: fav.cpu_name, price: fav.cpu_price, id: fav.cpu_id },
@@ -201,7 +201,7 @@ const Favorites = () => {
   // Filter favorites by category
   const filterByCategory = (category) => {
     setSelectedCategory(category);
-    
+
     if (category === 'All') {
       setFilteredFavorites(favorites);
     } else if (category === 'Uncategorized') {
@@ -268,12 +268,12 @@ const Favorites = () => {
     pdf.setFontSize(22);
     pdf.setFont(undefined, 'bold');
     pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
-    
+
     // Build info
     pdf.setFontSize(12);
     pdf.setFont(undefined, 'normal');
     pdf.text(`Saved: ${favorite.formatted_date}`, 105, 30, { align: "center" });
-    
+
     // Category
     if (favorite.category) {
       pdf.text(`Category: ${favorite.category}`, 105, 40, { align: "center" });
@@ -288,7 +288,7 @@ const Favorites = () => {
     ]);
 
     const startY = favorite.category ? 50 : 45;
-    
+
     autoTable(pdf, {
       startY: startY,
       head: [tableColumn],
@@ -311,7 +311,7 @@ const Favorites = () => {
     pdf.text(`Total Price: $${favorite.total_price.toLocaleString()}`, 15, finalY);
 
     // Save PDF
-    const fileName = favorite.category 
+    const fileName = favorite.category
       ? `Favorite_Build_${favorite.category}_${favorite.build_id}.pdf`
       : `Favorite_Build_${favorite.build_id}.pdf`;
     pdf.save(fileName);
@@ -329,48 +329,27 @@ const Favorites = () => {
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
       let currentPage = 1;
-      let startY = 30;
 
-      // Main Title
-      pdf.setFontSize(24);
-      pdf.setFont(undefined, 'bold');
-      pdf.text("All Favorite Builds", 105, 20, { align: "center" });
-      
-      // Subtitle
-      pdf.setFontSize(12);
-      pdf.setFont(undefined, 'normal');
-      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: "center" });
-      
-      // Category filter info
-      if (selectedCategory !== 'All') {
-        pdf.text(`Category: ${selectedCategory}`, 105, 40, { align: "center" });
-        startY = 50;
-      }
-
-      // Process each favorite
       filteredFavorites.forEach((favorite, index) => {
-        // Add new page if not first item (except for first item)
         if (index > 0) {
           pdf.addPage();
           currentPage++;
-          startY = 30;
         }
 
-        // Build Title
-        pdf.setFontSize(16);
+        pdf.setFontSize(22);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Build #${favorite.build_id + 1}`, 15, startY);
-        
-        // Build Info
-        pdf.setFontSize(11);
+        pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
+
+        pdf.setFontSize(12);
         pdf.setFont(undefined, 'normal');
-        let infoY = startY + 8;
-        
-        pdf.text(`Category: ${favorite.category || 'Uncategorized'}`, 15, infoY);
-        pdf.text(`Saved: ${favorite.formatted_date}`, 105, infoY);
-        pdf.text(`Total: $${favorite.total_price.toLocaleString()}`, 170, infoY);
-        
-        // Parts Table
+        pdf.text(`Saved: ${favorite.formatted_date}`, 105, 30, { align: "center" });
+
+        if (favorite.category) {
+          pdf.text(`Category: ${favorite.category}`, 105, 40, { align: "center" });
+        }
+
+        const startY = favorite.category ? 50 : 45;
+
         const tableColumn = ["Part Type", "Component Name", "Price"];
         const tableRows = favorite.parts.map(part => [
           part.partType,
@@ -379,35 +358,37 @@ const Favorites = () => {
         ]);
 
         autoTable(pdf, {
-          startY: infoY + 8,
+          startY: startY,
           head: [tableColumn],
           body: tableRows,
           theme: 'grid',
           headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
           bodyStyles: { textColor: 0 },
-          styles: { fontSize: 10, cellPadding: 2 },
+          styles: { fontSize: 12, cellPadding: 3 },
           columnStyles: {
-            0: { cellWidth: 30 },
-            1: { cellWidth: 120 },
-            2: { cellWidth: 25, halign: 'right' }
-          },
-          margin: { left: 15, right: 15 }
+            0: { cellWidth: 35 },
+            1: { cellWidth: 110 },
+            2: { cellWidth: 30, halign: 'right' }
+          }
         });
 
-        // Page footer
+        const finalY = pdf.lastAutoTable.finalY + 10;
+        pdf.setFontSize(14);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Total Price: $${favorite.total_price.toLocaleString()}`, 15, finalY);
+
         pdf.setFontSize(8);
         pdf.setFont(undefined, 'normal');
         pdf.text(`Page ${currentPage} of ${filteredFavorites.length}`, 105, 290, { align: "center" });
-        pdf.text(`Build ${index + 1} of ${filteredFavorites.length}`, 15, 290);
       });
 
-      // Save PDF
-      const fileName = selectedCategory === 'All' 
+      const fileName = selectedCategory === 'All'
         ? `All_Favorite_Builds_${new Date().toISOString().split('T')[0]}.pdf`
         : `Favorite_Builds_${selectedCategory}_${new Date().toISOString().split('T')[0]}.pdf`;
-      
+
       pdf.save(fileName);
       alert(`Downloaded ${filteredFavorites.length} builds successfully!`);
+
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF. Please try again.');
@@ -454,7 +435,7 @@ const Favorites = () => {
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <Logo />
-      
+
       <div className="max-w-7xl mx-auto mt-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -465,7 +446,7 @@ const Favorites = () => {
               {selectedCategory !== 'All' && ` in ${selectedCategory}`}
             </p>
           </div>
-          
+
           <div className="flex flex-wrap gap-3">
             {/* Download All Button */}
             {filteredFavorites.length > 0 && (
@@ -488,7 +469,7 @@ const Favorites = () => {
                 )}
               </button>
             )}
-            
+
             {/* Category Filter Button */}
             <div className="relative">
               <button
@@ -497,36 +478,35 @@ const Favorites = () => {
               >
                 <Filter size={18} />
                 {selectedCategory === 'All' ? 'All Categories' : selectedCategory}
-                <svg 
+                <svg
                   className={`w-4 h-4 transition-transform ${showCategoryFilter ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              
+
               {/* Category Dropdown */}
               {showCategoryFilter && (
                 <div className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                   <div className="p-2">
                     {categories.map(category => {
-                      const count = category === 'All' 
-                        ? favorites.length 
+                      const count = category === 'All'
+                        ? favorites.length
                         : category === 'Uncategorized'
                           ? categoryStats['Uncategorized'] || 0
                           : categoryStats[category] || 0;
-                      
+
                       return (
                         <button
                           key={category}
                           onClick={() => filterByCategory(category)}
-                          className={`w-full flex items-center justify-between px-4 py-2 rounded mb-1 transition-colors ${
-                            selectedCategory === category
-                              ? 'bg-pink-500 text-white'
-                              : 'hover:bg-gray-800 text-gray-300'
-                          }`}
+                          className={`w-full flex items-center justify-between px-4 py-2 rounded mb-1 transition-colors ${selectedCategory === category
+                            ? 'bg-pink-500 text-white'
+                            : 'hover:bg-gray-800 text-gray-300'
+                            }`}
                         >
                           <span>{category}</span>
                           <span className="text-xs bg-gray-700 px-2 py-1 rounded">
@@ -539,13 +519,13 @@ const Favorites = () => {
                 </div>
               )}
             </div>
-            
-            <button
+
+            {/* <button
               onClick={fetchFavorites}
               className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
             >
               Refresh
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -555,26 +535,24 @@ const Favorites = () => {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => filterByCategory('All')}
-                className={`px-4 py-2 rounded-full transition-colors ${
-                  selectedCategory === 'All'
-                    ? 'bg-pink-500 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
+                className={`px-4 py-2 rounded-full transition-colors ${selectedCategory === 'All'
+                  ? 'bg-pink-500 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
               >
                 All ({favorites.length})
               </button>
-              
+
               {Object.entries(categoryStats)
                 .sort((a, b) => b[1] - a[1])
                 .map(([category, count]) => (
                   <button
                     key={category}
                     onClick={() => filterByCategory(category)}
-                    className={`px-4 py-2 rounded-full transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-pink-500 text-white'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    }`}
+                    className={`px-4 py-2 rounded-full transition-colors ${selectedCategory === category
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      }`}
                   >
                     {category} ({count})
                   </button>
@@ -685,7 +663,6 @@ const Favorites = () => {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-xl font-semibold">Build #{favorite.build_id + 1}</h3>
                         {favorite.category && (
                           <span className="text-xs bg-pink-500/20 text-pink-400 px-2 py-1 rounded">
                             {favorite.category}
@@ -773,14 +750,6 @@ const Favorites = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-700">
               <div>
-                <h3 className="text-2xl font-semibold">
-                  Build #{selectedFavorite.build_id + 1} Details
-                  {selectedFavorite.category && (
-                    <span className="ml-3 text-sm bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full">
-                      {selectedFavorite.category}
-                    </span>
-                  )}
-                </h3>
                 <p className="text-gray-400 mt-1">Saved on {selectedFavorite.formatted_date}</p>
               </div>
               <button
