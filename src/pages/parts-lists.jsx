@@ -492,6 +492,8 @@ const PartsList = () => {
 
     const handleAskAI = async () => {
         const user = JSON.parse(sessionStorage.getItem('user'));
+        const category = JSON.parse(sessionStorage.getItem('category'));
+        sessionStorage.setItem('category', JSON.stringify(category));
         console.log(user);
         if (!user) {
             navigate('/login');

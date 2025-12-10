@@ -66,71 +66,65 @@ const AskAI = () => {
         }
     };
 
-    // Format AI response with bullet points
-    const formatAIResponse = (response) => {
-        // Check if response contains bullet points or needs formatting
-        const lines = response.split('\n');
-        let hasBullets = false;
+    // Extract YouTube video IDs from text
+    const extractYouTubeLinks = (text) => {
+        console.log('DEBUG: Extracting YouTube links from:', text.substring(0, 200));
         
-        // Check for bullet indicators
-        for (const line of lines) {
-            if (line.trim().startsWith('•') || 
-                line.trim().startsWith('-') || 
-                line.includes('Compatibility Score:') ||
-                line.includes('GUIDE:') ||
-                line.includes('Upgrade Priority:') ||
-                line.includes('Value Assessment:')) {
-                hasBullets = true;
-                break;
-            }
-        }
+        const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
+        const matches = [];
+        let match;
         
-        if (!hasBullets) {
-            // Check for JSON-like response
-            try {
-                const parsed = JSON.parse(response);
-                if (parsed.detailed_answer) {
-                    // Format JSON response with bullets
-                    let formatted = '';
-                    if (parsed.direct_answer && parsed.direct_answer !== 'N/A') {
-                        formatted += `**${parsed.direct_answer}**\n\n`;
-                    }
-                    if (parsed.detailed_answer) {
-                        const detailedLines = parsed.detailed_answer.split('\n');
-                        formatted += detailedLines.map(line => {
-                            if (line.trim().startsWith('-') || /^\d+\./.test(line.trim())) {
-                                return '• ' + line.trim().replace(/^-|\d+\./, '').trim();
-                            }
-                            return line;
-                        }).join('\n');
-                    }
-                    return { content: formatted, hasBullets: true };
+        while ((match = youtubeRegex.exec(text)) !== null) {
+            const videoId = match[1];
+            console.log('DEBUG: Found YouTube video ID:', videoId);
+            
+            // Check if it's a valid YouTube video ID format
+            if (videoId && videoId.length === 11) {
+                const alreadyCaptured = matches.some(m => m.id === videoId);
+                if (!alreadyCaptured) {
+                    matches.push({
+                        id: videoId,
+                        url: `https://www.youtube.com/watch?v=${videoId}`,
+                        title: 'YouTube Tutorial'
+                    });
                 }
-            } catch (e) {
-                // Not JSON, continue with regular formatting
             }
         }
         
-        // Format bullets properly
-        const formattedLines = lines.map(line => {
-            let trimmed = line.trim();
-            
-            // Convert various bullet styles to consistent •
-            if (trimmed.startsWith('- ')) {
-                return '• ' + trimmed.substring(2);
-            } else if (/^\d+\.\s/.test(trimmed)) {
-                return '• ' + trimmed.replace(/^\d+\.\s/, '');
-            } else if (trimmed.startsWith('* ')) {
-                return '• ' + trimmed.substring(2);
+        // Also check for "Video Tutorials:" section
+        if (text.includes('Video Tutorials:')) {
+            const videoSection = text.split('Video Tutorials:')[1];
+            if (videoSection) {
+                const videoUrls = videoSection.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/g);
+                if (videoUrls) {
+                    videoUrls.forEach(url => {
+                        const id = url.split('v=')[1];
+                        if (id && !matches.some(m => m.id === id)) {
+                            matches.push({
+                                id: id,
+                                url: `https://www.youtube.com/watch?v=${id}`,
+                                title: 'PC Building Tutorial'
+                            });
+                        }
+                    });
+                }
             }
-            
-            return line;
-        });
+        }
         
-        return { 
-            content: formattedLines.join('\n'), 
-            hasBullets: hasBullets || response.includes('•') || response.includes('- ')
-        };
+        console.log('DEBUG: Total YouTube links found:', matches.length);
+        return matches;
+    };
+
+    // Fix image URLs
+    const fixImageUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('//')) {
+            return `https:${url}`;
+        }
+        if (!url.startsWith('http')) {
+            return `https://${url}`;
+        }
+        return url;
     };
 
     const handleSendMessage = async () => {
@@ -145,7 +139,7 @@ const AskAI = () => {
         setInputValue('');
         setIsLoading(true);
 
-        // Transform the build data
+        // Transform the build data with images and category
         const transformBuildFormat = (buildData) => {
             if (!buildData || !buildData.parts) return {};
 
@@ -158,19 +152,26 @@ const AskAI = () => {
                     'psu': 'psu', 'power supply': 'psu', 'pc_case': 'pc_case', 'case': 'pc_case'
                 };
                 const backendKey = typeMap[partTypeKey] || partTypeKey;
-                transformedBuild[backendKey] = part.name;
+                transformedBuild[backendKey] = {
+                    name: part.name,
+                    image: part.image ? fixImageUrl(part.image) : null
+                };
             });
+
+            // Add category to the transformed build
+            transformedBuild.category = buildData.category || 'Custom';
 
             return transformedBuild;
         };
-
+        const category = JSON.parse(sessionStorage.getItem('category'));
         // Prepare request data
         const requestData = {
             question: inputValue,
-            build: transformBuildFormat(currentBuild)
+            build: transformBuildFormat(currentBuild),
+            category: category 
         };
 
-        console.log('Sending to backend:', requestData);
+        console.log('Sending to backend with category:', requestData);
 
         try {
             const response = await fetch(`${BASE_URL}/askAI`, {
@@ -188,6 +189,7 @@ const AskAI = () => {
 
                 let aiResponse = '';
                 let hasBullets = false;
+                let youtubeLinks = [];
 
                 if (result.success && result.message) {
                     const message = result.message;
@@ -197,13 +199,16 @@ const AskAI = () => {
                         if (message.format === 'bulleted' || message.has_bullets) {
                             aiResponse = message.content;
                             hasBullets = true;
+                            youtubeLinks = extractYouTubeLinks(message.content);
                         } else if (message.format === 'qa' && message.direct_answer) {
                             // For Q&A format
                             aiResponse = `${message.direct_answer}\n\n${message.detailed_answer}`;
                             hasBullets = message.has_bullets || false;
+                            youtubeLinks = extractYouTubeLinks(message.detailed_answer);
                         } else if (message.content) {
                             aiResponse = message.content;
                             hasBullets = message.has_bullets || false;
+                            youtubeLinks = extractYouTubeLinks(message.content);
                         }
                     } else if (typeof message === 'string') {
                         aiResponse = message;
@@ -214,7 +219,13 @@ const AskAI = () => {
                                     message.includes('Compatibility Score:') ||
                                     message.includes('GUIDE:') ||
                                     message.includes('Upgrade Priority:') ||
-                                    message.includes('Value Assessment:');
+                                    message.includes('Value Assessment:') ||
+                                    message.includes('PC ASSEMBLY GUIDE:') ||
+                                    message.includes('LEARNING PATH:') ||
+                                    message.includes('Video Tutorials:');
+                        
+                        // Extract YouTube links
+                        youtubeLinks = extractYouTubeLinks(message);
                     }
                 } else {
                     aiResponse = "I couldn't process your question. Please try again.";
@@ -229,6 +240,7 @@ const AskAI = () => {
                     role: 'assistant',
                     content: aiResponse,
                     hasBullets: hasBullets,
+                    youtubeLinks: youtubeLinks,
                     sentiment: determineSentiment(aiResponse)
                 };
                 setMessages(prev => [...prev, aiMessage]);
@@ -248,6 +260,7 @@ const AskAI = () => {
                         "• Consider checking specific compatibility details\n" +
                         "• For gaming, expect good 1440p performance",
                 hasBullets: true,
+                youtubeLinks: [],
                 sentiment: 'neutral'
             };
             setMessages(prev => [...prev, aiMessage]);
@@ -263,12 +276,69 @@ const AskAI = () => {
         }
     };
 
-    // Render message content with bullet formatting
-    const renderMessageContent = (content, hasBullets) => {
-        if (!hasBullets) {
-            return <p className="whitespace-pre-wrap">{content}</p>;
-        }
+    // Render YouTube video iframes
+    const renderYouTubeVideos = (youtubeLinks) => {
+        if (!youtubeLinks || youtubeLinks.length === 0) return null;
+        
+        return (
+            <div className="mt-4 space-y-3">
+                <div className="text-sm font-semibold text-pink-400 mb-2">
+                    🎬 Helpful Tutorials
+                </div>
+                <div className="space-y-3">
+                    {youtubeLinks.map((link, index) => (
+                        <div key={index} className="bg-gray-800 rounded-lg overflow-hidden border border-gray-700">
+                            <div className="relative pb-[56.25%]">
+                                <iframe
+                                    src={`https://www.youtube.com/embed/${link.id}`}
+                                    title={link.title}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                    className="absolute top-0 left-0 w-full h-full"
+                                ></iframe>
+                            </div>
+                            <div className="p-3">
+                                <a 
+                                    href={link.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 text-xs font-medium flex items-center gap-1"
+                                >
+                                    <span>Watch on YouTube</span>
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
+    // Render message content with bullet formatting and YouTube videos
+    const renderMessageContent = (content, hasBullets, youtubeLinks = []) => {
+        return (
+            <div className="space-y-3">
+                {/* Text content */}
+                <div>
+                    {!hasBullets ? (
+                        <p className="whitespace-pre-wrap">{content}</p>
+                    ) : (
+                        renderBulletedContent(content)
+                    )}
+                </div>
+                
+                {/* YouTube videos */}
+                {renderYouTubeVideos(youtubeLinks)}
+            </div>
+        );
+    };
+
+    // Helper function to render bulleted content
+    const renderBulletedContent = (content) => {
         const lines = content.split('\n');
         return (
             <div className="space-y-1">
@@ -280,7 +350,8 @@ const AskAI = () => {
                     const isHeader = trimmed.includes(':') && !trimmed.startsWith('•') && 
                                     (trimmed.endsWith(':') || trimmed.includes('Score:') || 
                                      trimmed.includes('GUIDE:') || trimmed.includes('Priority:') ||
-                                     trimmed.includes('Assessment:'));
+                                     trimmed.includes('Assessment:') || trimmed.includes('ASSEMBLY GUIDE:') ||
+                                     trimmed.includes('LEARNING PATH:') || trimmed.includes('Video Tutorials:'));
                     
                     if (isHeader) {
                         return (
@@ -301,6 +372,14 @@ const AskAI = () => {
                         );
                     } else if (trimmed === '') {
                         return <div key={index} className="h-3"></div>; // Empty line spacing
+                    } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+                        // Bold text (like YES/NO answers)
+                        const boldText = trimmed.substring(2, trimmed.length - 2);
+                        return (
+                            <div key={index} className="text-xl font-bold text-green-400 my-2">
+                                {boldText}
+                            </div>
+                        );
                     } else {
                         return (
                             <div key={index} className="whitespace-pre-wrap">
@@ -313,7 +392,7 @@ const AskAI = () => {
         );
     };
 
-    // Render build summary when no messages yet
+    // Render build summary with images when no messages yet
     const renderBuildSummary = () => {
         if (!currentBuild) {
             return (
@@ -342,28 +421,55 @@ const AskAI = () => {
                         <div>
                             <h3 className="text-xl font-semibold mb-2">Your PC Build</h3>
                             <p className="text-gray-400">Total: <span className="text-green-400 font-semibold">${currentBuild.total_price}</span></p>
+                            {currentBuild.category && (
+                                <div className="mt-2">
+                                    <span className="inline-block bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium">
+                                        {currentBuild.category} Build
+                                    </span>
+                                </div>
+                            )}
                         </div>
                         <div className="text-sm text-gray-500">
                             Build loaded from Parts List
                         </div>
                     </div>
 
-                    {/* Parts List */}
+                    {/* Parts List with Images */}
                     <div className="space-y-3 max-h-60 overflow-y-auto pr-2 parts-scrollbar">
                         {currentBuild.parts.map((part, index) => (
-                            <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-0">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
-                                        <span className="text-xs font-medium">
-                                            {part.partType.charAt(0)}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium">{part.name}</p>
+                            <div key={index} className="flex items-center justify-between py-2 border-b border-gray-700 last:border-0">
+                                <div className="flex items-center gap-3 flex-1">
+                                    {/* Component Image */}
+                                    {part.image ? (
+                                        <div className="relative">
+                                            <img
+                                                src={fixImageUrl(part.image)}
+                                                alt={part.name}
+                                                className="w-10 h-10 object-cover rounded border border-gray-600"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentElement.innerHTML = `
+                                                        <div class="w-10 h-10 bg-gray-700 rounded border border-gray-600 flex items-center justify-center">
+                                                            <span class="text-xs text-gray-400">${part.partType.charAt(0)}</span>
+                                                        </div>
+                                                    `;
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-10 h-10 bg-gray-700 rounded flex items-center justify-center">
+                                            <span className="text-xs text-gray-400">
+                                                {part.partType.charAt(0)}
+                                            </span>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{part.name}</p>
                                         <p className="text-xs text-gray-500">{part.partType}</p>
                                     </div>
                                 </div>
-                                <div className="text-green-400 font-medium">${part.price}</div>
+                                <div className="text-green-400 font-medium ml-2">${part.price}</div>
                             </div>
                         ))}
                     </div>
@@ -403,6 +509,12 @@ const AskAI = () => {
                     </Link>
                     <div className="flex items-center gap-6">
                         <button
+                            onClick={() => navigate('/lists')}
+                            className="text-gray-400 hover:text-white transition-colors"
+                        >
+                            Back to Build
+                        </button>
+                        <button
                             onClick={handleStartOver}
                             className="text-gray-400 hover:text-white transition-colors"
                         >
@@ -414,7 +526,7 @@ const AskAI = () => {
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                {messages.length === 0 ? (
+                {messages.length === 1 ? (
                     // Initial State - Centered with Build Summary
                     <div className="flex-1 flex flex-col items-center justify-center px-6 transition-all duration-500 ease-in-out">
                         <h2 className="text-2xl font-semibold text-center mb-8">
@@ -429,7 +541,7 @@ const AskAI = () => {
                         {/* Chat Area */}
                         <div className="flex-1 overflow-y-auto px-8 py-4 parts-scrollbar transition-all duration-500 ease-in-out">
                             <div className="max-w-7xl mx-auto space-y-6">
-                                {messages.map((message, index) => (
+                                {messages.slice(1).map((message, index) => (
                                     <div
                                         key={index}
                                         className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
@@ -440,7 +552,7 @@ const AskAI = () => {
                                             }`}
                                         >
                                             {/* Message Content */}
-                                            {renderMessageContent(message.content, message.hasBullets)}
+                                            {renderMessageContent(message.content, message.hasBullets, message.youtubeLinks)}
 
                                             {/* Sentiment Badge */}
                                             {message.sentiment && (
@@ -449,9 +561,9 @@ const AskAI = () => {
                                                         message.sentiment === 'neutral' ? 'bg-yellow-500/20 text-yellow-400' :
                                                         'bg-red-500/20 text-red-400'
                                                         }`}>
-                                                        {message.sentiment === 'good' ? 'Positive' :
-                                                            message.sentiment === 'neutral' ? 'Neutral' :
-                                                            'Concerns'}
+                                                        {message.sentiment === 'good' ? '✅ Positive' :
+                                                            message.sentiment === 'neutral' ? '⚪ Neutral' :
+                                                            '⚠️ Concerns'}
                                                     </span>
                                                 </div>
                                             )}
@@ -466,6 +578,7 @@ const AskAI = () => {
                                                 <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                                 <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                                             </div>
+                                            <p className="text-gray-400 text-sm mt-2">Thinking...</p>
                                         </div>
                                     </div>
                                 )}
@@ -474,23 +587,29 @@ const AskAI = () => {
                         </div>
 
                         {/* Suggested Questions */}
-                        <div className="flex flex-wrap justify-between gap-3 px-8 py-4">
-                            {[
-                                "Compatibity Score and Performance Score for this build",
-                                "Software applications that is highly supported on this build?",
-                                "Any compatibility issues?",
-                                "How to improve performance?",
-                                "Step-by-step assembly guide",
-                                "Upgrade recommendations"
-                            ].map((question, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setInputValue(question)}
-                                    className="bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-sm transition-colors border border-gray-700 text-left flex-1 min-w-[calc(50%-0.375rem)] lg:min-w-0"
-                                >
-                                    {question}
-                                </button>
-                            ))}
+                        <div className="px-8 py-4">
+                            <div className="max-w-7xl mx-auto">
+                                <div className="text-sm text-gray-400 mb-3">🎯 Quick Questions:</div>
+                                <div className="flex flex-wrap gap-3">
+                                    {[
+                                        "Compatibility & Performance Score",
+                                        "What software works best with my build?",
+                                        "Any hidden compatibility issues?",
+                                        "Step-by-step assembly guide",
+                                        "Best upgrade path for future?",
+                                        "Power requirements & efficiency",
+                                        "Overclocking potential & tips"
+                                    ].map((question, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setInputValue(question)}
+                                            className="bg-gray-800 hover:bg-gray-700 rounded-lg px-4 py-3 text-sm transition-colors border border-gray-700 text-left flex-1 min-w-[calc(50%-0.375rem)] lg:min-w-0"
+                                        >
+                                            {question}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Input Area - Bottom */}
@@ -508,11 +627,21 @@ const AskAI = () => {
                                     <button
                                         onClick={handleSendMessage}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="text-pink-500 hover:text-pink-400 disabled:text-gray-600 transition-colors"
+                                        className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-2 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                                        </svg>
+                                        {isLoading ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                                </svg>
+                                                Send
+                                            </>
+                                        )}
                                     </button>
                                 </div>
                             </div>
