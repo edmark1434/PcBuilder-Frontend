@@ -203,12 +203,34 @@ const Favorites = () => {
       if (data.success && data.data && data.data.favorites) {
         const processedFavorites = data.data.favorites.map(fav => {
           let parts = [];
-          let category = '';
+          let categoryString = '';
+          let categories = [];
 
           if (fav.build_data) {
             try {
               const parsedBuildData = JSON.parse(fav.build_data);
-              category = parsedBuildData.category || '';
+
+              // Handle categories parsing
+              if (parsedBuildData.category) {
+                if (Array.isArray(parsedBuildData.category)) {
+                  // Already an array from new saves
+                  categories = parsedBuildData.category;
+                  categoryString = categories.join(', ');
+                } else if (typeof parsedBuildData.category === 'string') {
+                  // Handle comma-separated strings from old saves
+                  categoryString = parsedBuildData.category;
+
+                  // Parse comma-separated string into array
+                  if (parsedBuildData.category.includes(', ')) {
+                    categories = parsedBuildData.category.split(', ').filter(cat => cat.trim());
+                  } else if (parsedBuildData.category.includes(',')) {
+                    categories = parsedBuildData.category.split(',').map(cat => cat.trim()).filter(cat => cat);
+                  } else {
+                    // Single category
+                    categories = [parsedBuildData.category];
+                  }
+                }
+              }
 
               if (parsedBuildData.parts && Array.isArray(parsedBuildData.parts)) {
                 parts = parsedBuildData.parts;
@@ -238,7 +260,8 @@ const Favorites = () => {
           return {
             id: fav.id,
             build_id: fav.build_id,
-            category: category || 'Uncategorized',
+            category: categoryString || 'Uncategorized',
+            categories: categories.length > 0 ? categories : ['Uncategorized'],
             total_price: fav.total_price,
             parts: parts.map(part => ({
               ...part,
@@ -278,9 +301,15 @@ const Favorites = () => {
     if (category === 'All') {
       setFilteredFavorites(favorites);
     } else if (category === 'Uncategorized') {
-      setFilteredFavorites(favorites.filter(fav => !fav.category || fav.category === ''));
+      setFilteredFavorites(favorites.filter(fav =>
+        !fav.categories ||
+        fav.categories.length === 0 ||
+        (fav.categories.length === 1 && fav.categories[0] === 'Uncategorized')
+      ));
     } else {
-      setFilteredFavorites(favorites.filter(fav => fav.category === category));
+      setFilteredFavorites(favorites.filter(fav =>
+        fav.categories && fav.categories.includes(category)
+      ));
     }
     setShowCategoryFilter(false);
   };
@@ -289,8 +318,14 @@ const Favorites = () => {
   const getCategoryStats = () => {
     const stats = {};
     favorites.forEach(fav => {
-      const cat = fav.category || 'Uncategorized';
-      stats[cat] = (stats[cat] || 0) + 1;
+      if (fav.categories && fav.categories.length > 0) {
+        fav.categories.forEach(cat => {
+          const category = cat || 'Uncategorized';
+          stats[category] = (stats[category] || 0) + 1;
+        });
+      } else {
+        stats['Uncategorized'] = (stats['Uncategorized'] || 0) + 1;
+      }
     });
     return stats;
   };
@@ -775,12 +810,15 @@ const Favorites = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {favorite.category && (
-                          <span className="text-xs bg-pink-500/20 text-pink-400 px-2 py-1 rounded">
-                            {favorite.category}
+                      <div className="flex flex-wrap gap-2 mb-1">
+                        {favorite.categories && favorite.categories.map((cat, idx) => (
+                          <span
+                            key={idx}
+                            className="text-xs bg-pink-500/20 text-pink-400 px-2 py-1 rounded"
+                          >
+                            {cat}
                           </span>
-                        )}
+                        ))}
                       </div>
                       <p className="text-gray-400 text-sm">{favorite.formatted_date}</p>
                     </div>
@@ -868,15 +906,27 @@ const Favorites = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-700">
               <div>
-                <div className="flex items-center gap-3">
-                  {selectedFavorite.category && (
-                    <span className="text-sm bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full">
-                      {selectedFavorite.category}
-                    </span>
+                <div className="flex flex-col items-start gap-2">
+                  {/* Categories */}
+                  {selectedFavorite.categories && selectedFavorite.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedFavorite.categories.map((cat, idx) => (
+                        <span
+                          key={idx}
+                          className="text-sm bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full"
+                        >
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                  <h3 className="text-xl font-bold">Build Details</h3>
+
+                  {/* Title and Date */}
+                  <div>
+                    <h3 className="text-xl font-bold">Build Details</h3>
+                    <p className="text-gray-400 text-sm mt-1">Saved on {selectedFavorite.formatted_date}</p>
+                  </div>
                 </div>
-                <p className="text-gray-400 mt-1">Saved on {selectedFavorite.formatted_date}</p>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}

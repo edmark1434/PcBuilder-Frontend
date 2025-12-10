@@ -173,9 +173,20 @@ const Automate = () => {
             }
         }
 
+        // FIXED: Convert array to string for backend compatibility
+        let categoryForBackend;
+        if (multipleSelection) {
+            // Convert array to comma-separated string for the backend
+            categoryForBackend = selectedUses.join(',');
+        } else {
+            categoryForBackend = selectedUse;
+        }
+
         let passData = {
-            category: multipleSelection ? selectedUses.join(', ') : selectedUse
+            // Send as string (comma-separated for multiple)
+            category: categoryForBackend
         };
+
         if (!multipleSelection) {
             passData = {
                 ...passData,
@@ -183,12 +194,15 @@ const Automate = () => {
                 max: priceRange.max ? Number(priceRange.max) : undefined
             }
         }
+
         console.log('Sending to backend:', passData); // Debug log
 
         setIsLoading(true);
         setIsModalOpen(true);
+
+        // Still save as array in sessionStorage for frontend use
         sessionStorage.setItem('category', JSON.stringify(
-            multipleSelection ? selectedUses.join(', ') : selectedUse
+            multipleSelection ? selectedUses : selectedUse
         ));
 
         try {
@@ -430,7 +444,7 @@ const Automate = () => {
                     )}
 
                     {/* Summary of selections */}
-                    <div className="mt-8 p-4 bg-gray-900/50 rounded-lg">
+                    {/* <div className="mt-8 p-4 bg-gray-900/50 rounded-lg">
                         <h4 className="text-white font-semibold mb-2">Summary</h4>
                         <div className="text-sm text-gray-300 space-y-1">
                             {multipleSelection ? (
@@ -450,7 +464,7 @@ const Automate = () => {
                                 </>
                             )}
                         </div>
-                    </div>
+                    </div> */}
                 </div>
 
                 <div className="flex justify-end">
