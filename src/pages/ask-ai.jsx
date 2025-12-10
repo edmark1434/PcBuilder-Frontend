@@ -51,7 +51,7 @@ const AskAI = () => {
 
     const determineSentiment = (text) => {
         const lowerText = text.toLowerCase();
-        
+
         // GOOD keywords
         if (lowerText.includes("good") || lowerText.includes("great") || lowerText.includes("excellent") || lowerText.includes("fast") || lowerText.includes("awesome") || lowerText.includes("solid") || lowerText.includes("compatible") || lowerText.includes("recommend")) {
             return 'good';
@@ -60,7 +60,7 @@ const AskAI = () => {
         else if (lowerText.includes("bad") || lowerText.includes("terrible") || lowerText.includes("poor") || lowerText.includes("problem") || lowerText.includes("slow") || lowerText.includes("incompatible") || lowerText.includes("bottleneck")) {
             return 'bad';
         }
-       
+
         // Everything else is neutral
         else {
             return 'neutral';
@@ -549,11 +549,10 @@ const AskAI = () => {
                                         key={index}
                                         className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                     >
-                                        <div className={`max-w-[85%] rounded-xl p-5 relative ${
-                                            message.role === 'user'
-                                            ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
-                                            : 'bg-gradient-to-r from-gray-900 to-black text-gray-200 border border-gray-800'
-                                        }`}
+                                        <div className={`max-w-[85%] rounded-xl p-5 relative ${message.role === 'user'
+                                                ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
+                                                : 'bg-gradient-to-r from-gray-900 to-black text-gray-200 border border-gray-800'
+                                            }`}
                                         >
                                             {/* Message Content */}
                                             <div className="mb-2">
@@ -563,11 +562,10 @@ const AskAI = () => {
                                             {/* Sentiment Badge - Smaller */}
                                             {message.sentiment && (
                                                 <div className="mt-3 pt-3 border-t border-gray-700/50">
-                                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                                        message.sentiment === 'good' ? 'bg-green-500/10 text-green-400' :
-                                                        message.sentiment === 'neutral' ? 'bg-yellow-500/10 text-yellow-400' :
-                                                        'bg-red-500/10 text-red-400'
-                                                    }`}>
+                                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${message.sentiment === 'good' ? 'bg-green-500/10 text-green-400' :
+                                                            message.sentiment === 'neutral' ? 'bg-yellow-500/10 text-yellow-400' :
+                                                                'bg-red-500/10 text-red-400'
+                                                        }`}>
                                                         {message.sentiment === 'good' ? '✅ Positive' :
                                                             message.sentiment === 'neutral' ? '⚪ Neutral' :
                                                                 '⚠️ Concerns'}
@@ -577,7 +575,7 @@ const AskAI = () => {
                                         </div>
                                     </div>
                                 ))}
-                                
+
                                 {isLoading && (
                                     <div className="flex justify-start">
                                         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
@@ -622,31 +620,33 @@ const AskAI = () => {
                             </div>
                         </div>
 
-                        {/* Input Area - More compact */}
-                        <div className="px-6 py-4 border-t border-gray-800 bg-black/50">
-                            <div className="max-w-6xl mx-auto">
-                                <div className="flex items-center gap-3 bg-gray-800/50 rounded-2xl px-5 py-3 border border-gray-700">
-                                    <input
-                                        type="text"
-                                        value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
-                                        onKeyPress={handleKeyPress}
-                                        placeholder="Ask AI about your build..."
-                                        className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none text-sm"
-                                    />
+                        {/* Input Area - Bottom */}
+                        <div className="p-4 sm:p-8 border-t border-gray-800">
+                            <div className="max-w-7xl mx-auto">
+                                <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                                    <div className="flex-1 flex items-center bg-gray-800 rounded-full px-4 sm:px-6 py-3">
+                                        <input
+                                            type="text"
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            onKeyPress={handleKeyPress}
+                                            placeholder="Ask AI about your build"
+                                            className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none w-full"
+                                        />
+                                    </div>
                                     <button
                                         onClick={handleSendMessage}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium px-5 py-2 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                                        className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-3 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
                                     >
                                         {isLoading ? (
                                             <>
-                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                                 Sending...
                                             </>
                                         ) : (
                                             <>
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                 </svg>
                                                 Send
