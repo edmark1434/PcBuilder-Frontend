@@ -19,6 +19,12 @@ const Favorites = () => {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
 
+  // Currency conversion states
+  const [conversionRate, setConversionRate] = useState(null);
+  const [conversionLoading, setConversionLoading] = useState(false);
+  const [conversionError, setConversionError] = useState(null);
+  const [showPHP, setShowPHP] = useState(false); // Toggle between USD and PHP
+
   // Category list
   const categories = [
     'All',
@@ -37,6 +43,10 @@ const Favorites = () => {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+  // Exchange Rate API
+  const EXCHANGE_API_KEY = '391e07669e1a5aa7dd44cc53';
+  const EXCHANGE_API_URL = `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/USD/PHP`;
+
   // Fix image URLs
   const fixImageUrl = (url) => {
     if (!url) return '';
@@ -45,12 +55,12 @@ const Favorites = () => {
     }
     return url.replace(/\\\//g, '/');
   };
-  
+
   const handleAskAI = async () => {
     sessionStorage.setItem('currentBuild', JSON.stringify(selectedFavorite));
     navigate('/ask');
   }
-  
+
   // Format JSON string from database
   const parsePartsData = (partsString) => {
     try {
@@ -95,6 +105,69 @@ const Favorites = () => {
     }
   };
 
+  // Fetch conversion rate
+  const fetchConversionRate = async () => {
+    try {
+      setConversionLoading(true);
+      setConversionError(null);
+
+      const response = await fetch(EXCHANGE_API_URL);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch exchange rate: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.result === 'success') {
+        setConversionRate(data.conversion_rate);
+        // Store in localStorage for caching (valid for 1 hour)
+        localStorage.setItem('usd_to_php_rate', JSON.stringify({
+          rate: data.conversion_rate,
+          timestamp: Date.now()
+        }));
+      } else {
+        throw new Error(data['error-type'] || 'Failed to get conversion rate');
+      }
+    } catch (error) {
+      console.error('Error fetching conversion rate:', error);
+      setConversionError(error.message);
+
+      // Try to use cached rate if available
+      const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
+      if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) { // 1 hour cache
+        setConversionRate(cachedRate.rate);
+      }
+    } finally {
+      setConversionLoading(false);
+    }
+  };
+
+  // Convert USD to PHP
+  const convertToPHP = (usdAmount) => {
+    if (!conversionRate || !usdAmount) return 0;
+    return usdAmount * conversionRate;
+  };
+
+  // Format price based on selected currency
+  const formatPrice = (price) => {
+    const priceNum = Number(price) || 0;
+    if (showPHP && conversionRate) {
+      const phpAmount = convertToPHP(priceNum);
+      return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `$${priceNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Format total price with both currencies
+  const formatTotalPrice = (totalPrice) => {
+    const totalNum = Number(totalPrice) || 0;
+    if (showPHP && conversionRate) {
+      const phpAmount = convertToPHP(totalNum);
+      return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `$${totalNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   // Fetch user's favorites
   const fetchFavorites = async () => {
     try {
@@ -104,7 +177,7 @@ const Favorites = () => {
       let userParam = searchParams.get('user_id');
       let storedUser = JSON.parse(sessionStorage.getItem('user'));
       let finalUserId = userParam || (storedUser && storedUser.id);
-      
+
       if (!finalUserId) {
         setError('User ID is required. Please provide a user_id parameter.');
         setFavorites([]);
@@ -126,17 +199,39 @@ const Favorites = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.data && data.data.favorites) {
         const processedFavorites = data.data.favorites.map(fav => {
           let parts = [];
-          let category = '';
-          
+          let categoryString = '';
+          let categories = [];
+
           if (fav.build_data) {
             try {
               const parsedBuildData = JSON.parse(fav.build_data);
-              category = parsedBuildData.category || '';
-              
+
+              // Handle categories parsing
+              if (parsedBuildData.category) {
+                if (Array.isArray(parsedBuildData.category)) {
+                  // Already an array from new saves
+                  categories = parsedBuildData.category;
+                  categoryString = categories.join(', ');
+                } else if (typeof parsedBuildData.category === 'string') {
+                  // Handle comma-separated strings from old saves
+                  categoryString = parsedBuildData.category;
+
+                  // Parse comma-separated string into array
+                  if (parsedBuildData.category.includes(', ')) {
+                    categories = parsedBuildData.category.split(', ').filter(cat => cat.trim());
+                  } else if (parsedBuildData.category.includes(',')) {
+                    categories = parsedBuildData.category.split(',').map(cat => cat.trim()).filter(cat => cat);
+                  } else {
+                    // Single category
+                    categories = [parsedBuildData.category];
+                  }
+                }
+              }
+
               if (parsedBuildData.parts && Array.isArray(parsedBuildData.parts)) {
                 parts = parsedBuildData.parts;
               }
@@ -144,11 +239,11 @@ const Favorites = () => {
               console.error('Error parsing build_data JSON:', parseError);
             }
           }
-          
+
           if (parts.length === 0 && fav.parts_data) {
             parts = parsePartsData(fav.parts_data);
           }
-          
+
           if (parts.length === 0) {
             parts = [
               fav.cpu_name && { partType: 'CPU', name: fav.cpu_name, price: fav.cpu_price, id: fav.cpu_id },
@@ -165,7 +260,8 @@ const Favorites = () => {
           return {
             id: fav.id,
             build_id: fav.build_id,
-            category: category || 'Uncategorized',
+            category: categoryString || 'Uncategorized',
+            categories: categories.length > 0 ? categories : ['Uncategorized'],
             total_price: fav.total_price,
             parts: parts.map(part => ({
               ...part,
@@ -201,13 +297,19 @@ const Favorites = () => {
   // Filter favorites by category
   const filterByCategory = (category) => {
     setSelectedCategory(category);
-    
+
     if (category === 'All') {
       setFilteredFavorites(favorites);
     } else if (category === 'Uncategorized') {
-      setFilteredFavorites(favorites.filter(fav => !fav.category || fav.category === ''));
+      setFilteredFavorites(favorites.filter(fav =>
+        !fav.categories ||
+        fav.categories.length === 0 ||
+        (fav.categories.length === 1 && fav.categories[0] === 'Uncategorized')
+      ));
     } else {
-      setFilteredFavorites(favorites.filter(fav => fav.category === category));
+      setFilteredFavorites(favorites.filter(fav =>
+        fav.categories && fav.categories.includes(category)
+      ));
     }
     setShowCategoryFilter(false);
   };
@@ -216,8 +318,14 @@ const Favorites = () => {
   const getCategoryStats = () => {
     const stats = {};
     favorites.forEach(fav => {
-      const cat = fav.category || 'Uncategorized';
-      stats[cat] = (stats[cat] || 0) + 1;
+      if (fav.categories && fav.categories.length > 0) {
+        fav.categories.forEach(cat => {
+          const category = cat || 'Uncategorized';
+          stats[category] = (stats[category] || 0) + 1;
+        });
+      } else {
+        stats['Uncategorized'] = (stats['Uncategorized'] || 0) + 1;
+      }
     });
     return stats;
   };
@@ -267,28 +375,45 @@ const Favorites = () => {
     // Title
     pdf.setFontSize(22);
     pdf.setFont(undefined, 'bold');
-    pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
-    
+    pdf.text("AutoBuild PC", 105, 20, { align: "center" });
+
+    // Currency info if PHP is selected
+    if (showPHP && conversionRate) {
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Exchange Rate: 1 USD = ${conversionRate.toFixed(4)} PHP`, 105, 30, { align: "center" });
+    }
+
     // Build info
     pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
-    pdf.text(`Saved: ${favorite.formatted_date}`, 105, 30, { align: "center" });
-    
+    pdf.text(`Saved: ${favorite.formatted_date}`, 105, showPHP && conversionRate ? 40 : 30, { align: "center" });
+
     // Category
     if (favorite.category) {
-      pdf.text(`Category: ${favorite.category}`, 105, 40, { align: "center" });
+      pdf.text(`Category: ${favorite.category}`, 105, showPHP && conversionRate ? 50 : 40, { align: "center" });
     }
 
     // Table
-    const tableColumn = ["Part Type", "Component Name", "Price"];
-    const tableRows = favorite.parts.map(part => [
-      part.partType,
-      part.name,
-      `$${part.price.toLocaleString()}`
-    ]);
+    const tableColumn = ["Part Type", "Component Name", "Price (USD)"];
+    if (showPHP) {
+      tableColumn.push("Price (PHP)");
+    }
 
-    const startY = favorite.category ? 50 : 45;
-    
+    const tableRows = favorite.parts.map(part => {
+      const row = [
+        part.partType,
+        part.name,
+        `$${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      ];
+      if (showPHP && conversionRate) {
+        const phpPrice = convertToPHP(part.price);
+        row.push(`P${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      }
+      return row;
+    });
+
+    const startY = favorite.category ? (showPHP && conversionRate ? 60 : 50) : (showPHP && conversionRate ? 55 : 45);
+
     autoTable(pdf, {
       startY: startY,
       head: [tableColumn],
@@ -296,11 +421,12 @@ const Favorites = () => {
       theme: 'grid',
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
       bodyStyles: { textColor: 0 },
-      styles: { fontSize: 12, cellPadding: 3 },
+      styles: { fontSize: 10, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 110 },
-        2: { cellWidth: 30, halign: 'right' }
+        0: { cellWidth: 30 },
+        1: { cellWidth: showPHP ? 75 : 100 },
+        2: { cellWidth: 35, halign: 'right' },
+        ...(showPHP && { 3: { cellWidth: 40, halign: 'right' } })
       }
     });
 
@@ -308,10 +434,15 @@ const Favorites = () => {
     const finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
-    pdf.text(`Total Price: $${favorite.total_price.toLocaleString()}`, 15, finalY);
+    pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
+
+    if (showPHP && conversionRate) {
+      const totalPHP = convertToPHP(favorite.total_price);
+      pdf.text(`Total Price (PHP): P${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+    }
 
     // Save PDF
-    const fileName = favorite.category 
+    const fileName = favorite.category
       ? `Favorite_Build_${favorite.category}_${favorite.build_id}.pdf`
       : `Favorite_Build_${favorite.build_id}.pdf`;
     pdf.save(fileName);
@@ -329,85 +460,89 @@ const Favorites = () => {
     try {
       const pdf = new jsPDF('p', 'mm', 'a4');
       let currentPage = 1;
-      let startY = 30;
 
-      // Main Title
-      pdf.setFontSize(24);
-      pdf.setFont(undefined, 'bold');
-      pdf.text("All Favorite Builds", 105, 20, { align: "center" });
-      
-      // Subtitle
-      pdf.setFontSize(12);
-      pdf.setFont(undefined, 'normal');
-      pdf.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 30, { align: "center" });
-      
-      // Category filter info
-      if (selectedCategory !== 'All') {
-        pdf.text(`Category: ${selectedCategory}`, 105, 40, { align: "center" });
-        startY = 50;
-      }
-
-      // Process each favorite
       filteredFavorites.forEach((favorite, index) => {
-        // Add new page if not first item (except for first item)
         if (index > 0) {
           pdf.addPage();
           currentPage++;
-          startY = 30;
         }
 
-        // Build Title
-        pdf.setFontSize(16);
+        pdf.setFontSize(22);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Build #${favorite.build_id + 1}`, 15, startY);
-        
-        // Build Info
-        pdf.setFontSize(11);
-        pdf.setFont(undefined, 'normal');
-        let infoY = startY + 8;
-        
-        pdf.text(`Category: ${favorite.category || 'Uncategorized'}`, 15, infoY);
-        pdf.text(`Saved: ${favorite.formatted_date}`, 105, infoY);
-        pdf.text(`Total: $${favorite.total_price.toLocaleString()}`, 170, infoY);
-        
-        // Parts Table
-        const tableColumn = ["Part Type", "Component Name", "Price"];
-        const tableRows = favorite.parts.map(part => [
-          part.partType,
-          part.name,
-          `$${part.price.toLocaleString()}`
-        ]);
+        pdf.text("AutoBuild PC", 105, 20, { align: "center" });
+
+        // Currency info if PHP is selected
+        if (showPHP && conversionRate) {
+          pdf.setFontSize(10);
+          pdf.setFont(undefined, 'normal');
+          pdf.text(`Exchange Rate: 1 USD = ${conversionRate.toFixed(4)} PHP`, 105, 30, { align: "center" });
+        }
+
+        pdf.setFontSize(12);
+        pdf.text(`Saved: ${favorite.formatted_date}`, 105, showPHP && conversionRate ? 40 : 30, { align: "center" });
+
+        if (favorite.category) {
+          pdf.text(`Category: ${favorite.category}`, 105, showPHP && conversionRate ? 50 : 40, { align: "center" });
+        }
+
+        const startY = favorite.category ? (showPHP && conversionRate ? 60 : 50) : (showPHP && conversionRate ? 55 : 45);
+
+        const tableColumn = ["Part Type", "Component Name", "Price (USD)"];
+        if (showPHP) {
+          tableColumn.push("Price (PHP)");
+        }
+
+        const tableRows = favorite.parts.map(part => {
+          const row = [
+            part.partType,
+            part.name,
+            `$${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          ];
+          if (showPHP && conversionRate) {
+            const phpPrice = convertToPHP(part.price);
+            row.push(`P${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          }
+          return row;
+        });
 
         autoTable(pdf, {
-          startY: infoY + 8,
+          startY: startY,
           head: [tableColumn],
           body: tableRows,
           theme: 'grid',
           headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
           bodyStyles: { textColor: 0 },
-          styles: { fontSize: 10, cellPadding: 2 },
+          styles: { fontSize: 10, cellPadding: 3 },
           columnStyles: {
             0: { cellWidth: 30 },
-            1: { cellWidth: 120 },
-            2: { cellWidth: 25, halign: 'right' }
-          },
-          margin: { left: 15, right: 15 }
+            1: { cellWidth: showPHP ? 75 : 100 },
+            2: { cellWidth: 35, halign: 'right' },
+            ...(showPHP && { 3: { cellWidth: 40, halign: 'right' } })
+          }
         });
 
-        // Page footer
+        const finalY = pdf.lastAutoTable.finalY + 10;
+        pdf.setFontSize(14);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
+
+        if (showPHP && conversionRate) {
+          const totalPHP = convertToPHP(favorite.total_price);
+          pdf.text(`Total Price (PHP): P${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+        }
+
         pdf.setFontSize(8);
         pdf.setFont(undefined, 'normal');
         pdf.text(`Page ${currentPage} of ${filteredFavorites.length}`, 105, 290, { align: "center" });
-        pdf.text(`Build ${index + 1} of ${filteredFavorites.length}`, 15, 290);
       });
 
-      // Save PDF
-      const fileName = selectedCategory === 'All' 
+      const fileName = selectedCategory === 'All'
         ? `All_Favorite_Builds_${new Date().toISOString().split('T')[0]}.pdf`
         : `Favorite_Builds_${selectedCategory}_${new Date().toISOString().split('T')[0]}.pdf`;
-      
+
       pdf.save(fileName);
       alert(`Downloaded ${filteredFavorites.length} builds successfully!`);
+
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF. Please try again.');
@@ -422,9 +557,10 @@ const Favorites = () => {
     setShowDetailModal(true);
   };
 
-  // Load favorites on component mount
+  // Load favorites and conversion rate on component mount
   useEffect(() => {
     fetchFavorites();
+    fetchConversionRate();
   }, [searchParams]);
 
   if (loading) {
@@ -454,7 +590,7 @@ const Favorites = () => {
   return (
     <div className="min-h-screen bg-black text-white p-8">
       <Logo />
-      
+
       <div className="max-w-7xl mx-auto mt-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -465,8 +601,27 @@ const Favorites = () => {
               {selectedCategory !== 'All' && ` in ${selectedCategory}`}
             </p>
           </div>
-          
+
           <div className="flex flex-wrap gap-3">
+            {/* Currency Toggle */}
+            <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setShowPHP(false)}
+                className={`px-4 py-2 rounded-md transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
+              >
+                USD
+              </button>
+              <button
+                onClick={() => setShowPHP(true)}
+                disabled={!conversionRate || conversionLoading}
+                className={`px-4 py-2 rounded-md transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                  } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {conversionLoading ? 'Loading...' : 'PHP'}
+              </button>
+            </div>
+
             {/* Download All Button */}
             {filteredFavorites.length > 0 && (
               <button
@@ -488,7 +643,7 @@ const Favorites = () => {
                 )}
               </button>
             )}
-            
+
             {/* Category Filter Button */}
             <div className="relative">
               <button
@@ -497,36 +652,41 @@ const Favorites = () => {
               >
                 <Filter size={18} />
                 {selectedCategory === 'All' ? 'All Categories' : selectedCategory}
-                <svg 
+                <svg
                   className={`w-4 h-4 transition-transform ${showCategoryFilter ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
-              
+
               {/* Category Dropdown */}
               {showCategoryFilter && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto parts-scrollbar">
                   <div className="p-2">
                     {categories.map(category => {
-                      const count = category === 'All' 
-                        ? favorites.length 
-                        : category === 'Uncategorized'
-                          ? categoryStats['Uncategorized'] || 0
-                          : categoryStats[category] || 0;
-                      
+                      const count =
+                        category === "All"
+                          ? favorites.length
+                          : category === "Uncategorized"
+                            ? categoryStats["Uncategorized"] || 0
+                            : categoryStats[category] || 0;
+
                       return (
                         <button
                           key={category}
                           onClick={() => filterByCategory(category)}
-                          className={`w-full flex items-center justify-between px-4 py-2 rounded mb-1 transition-colors ${
-                            selectedCategory === category
-                              ? 'bg-pink-500 text-white'
-                              : 'hover:bg-gray-800 text-gray-300'
-                          }`}
+                          className={`w-full flex items-center justify-between px-4 py-2 rounded mb-1 transition-colors ${selectedCategory === category
+                            ? "bg-pink-500 text-white"
+                            : "hover:bg-gray-800 text-gray-300"
+                            }`}
                         >
                           <span>{category}</span>
                           <span className="text-xs bg-gray-700 px-2 py-1 rounded">
@@ -539,47 +699,13 @@ const Favorites = () => {
                 </div>
               )}
             </div>
-            
-            <button
-              onClick={fetchFavorites}
-              className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
-            >
-              Refresh
-            </button>
           </div>
         </div>
 
-        {/* Category Quick Filters */}
-        {favorites.length > 0 && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => filterByCategory('All')}
-                className={`px-4 py-2 rounded-full transition-colors ${
-                  selectedCategory === 'All'
-                    ? 'bg-pink-500 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-              >
-                All ({favorites.length})
-              </button>
-              
-              {Object.entries(categoryStats)
-                .sort((a, b) => b[1] - a[1])
-                .map(([category, count]) => (
-                  <button
-                    key={category}
-                    onClick={() => filterByCategory(category)}
-                    className={`px-4 py-2 rounded-full transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-pink-500 text-white'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    }`}
-                  >
-                    {category} ({count})
-                  </button>
-                ))}
-            </div>
+        {/* Currency Info */}
+        {conversionRate && (
+          <div className="mb-4 text-sm text-gray-400">
+            Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
           </div>
         )}
 
@@ -684,13 +810,15 @@ const Favorites = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-xl font-semibold">Build #{favorite.build_id + 1}</h3>
-                        {favorite.category && (
-                          <span className="text-xs bg-pink-500/20 text-pink-400 px-2 py-1 rounded">
-                            {favorite.category}
+                      <div className="flex flex-wrap gap-2 mb-1">
+                        {favorite.categories && favorite.categories.map((cat, idx) => (
+                          <span
+                            key={idx}
+                            className="text-xs bg-pink-500/20 text-pink-400 px-2 py-1 rounded"
+                          >
+                            {cat}
                           </span>
-                        )}
+                        ))}
                       </div>
                       <p className="text-gray-400 text-sm">{favorite.formatted_date}</p>
                     </div>
@@ -714,8 +842,8 @@ const Favorites = () => {
                           <p className="text-sm truncate">{part.name}</p>
                           <p className="text-xs text-gray-400">{part.partType}</p>
                         </div>
-                        <div className="text-green-400 font-medium">
-                          ${part.price}
+                        <div className="text-green-400 font-medium text-sm">
+                          {formatPrice(part.price)}
                         </div>
                       </div>
                     ))}
@@ -731,8 +859,13 @@ const Favorites = () => {
                       <div>
                         <p className="text-gray-400 text-sm">Total Price</p>
                         <p className="text-2xl font-bold text-green-400">
-                          ${Number(favorite.total_price).toLocaleString()}
+                          {formatTotalPrice(favorite.total_price)}
                         </p>
+                        {showPHP && conversionRate && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            ≈ ${Number(favorite.total_price).toLocaleString()}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -767,21 +900,33 @@ const Favorites = () => {
           onClick={() => setShowDetailModal(false)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto parts-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-700">
               <div>
-                <h3 className="text-2xl font-semibold">
-                  Build #{selectedFavorite.build_id + 1} Details
-                  {selectedFavorite.category && (
-                    <span className="ml-3 text-sm bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full">
-                      {selectedFavorite.category}
-                    </span>
+                <div className="flex flex-col items-start gap-2">
+                  {/* Categories */}
+                  {selectedFavorite.categories && selectedFavorite.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedFavorite.categories.map((cat, idx) => (
+                        <span
+                          key={idx}
+                          className="text-sm bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full"
+                        >
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                </h3>
-                <p className="text-gray-400 mt-1">Saved on {selectedFavorite.formatted_date}</p>
+
+                  {/* Title and Date */}
+                  <div>
+                    <h3 className="text-xl font-bold">Build Details</h3>
+                    <p className="text-gray-400 text-sm mt-1">Saved on {selectedFavorite.formatted_date}</p>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}
@@ -798,7 +943,25 @@ const Favorites = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Parts List */}
                 <div>
-                  <h4 className="text-lg font-semibold mb-4">Parts List</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold">Parts List</h4>
+                    <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+                      <button
+                        onClick={() => setShowPHP(false)}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'}`}
+                      >
+                        USD
+                      </button>
+                      <button
+                        onClick={() => setShowPHP(true)}
+                        disabled={!conversionRate}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'} ${!conversionRate ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        PHP
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
                     {selectedFavorite.parts.map((part, index) => (
                       <div
@@ -813,10 +976,10 @@ const Favorites = () => {
                             onError={(e) => {
                               e.target.style.display = 'none';
                               e.target.parentElement.innerHTML = `
-                                <div class="w-16 h-16 rounded border border-gray-600 flex items-center justify-center bg-gray-700">
-                                  ${getPartIcon(part.partType)}
-                                </div>
-                              `;
+                          <div class="w-16 h-16 rounded border border-gray-600 flex items-center justify-center bg-gray-700">
+                            ${getPartIcon(part.partType)}
+                          </div>
+                        `;
                             }}
                           />
                         )}
@@ -826,7 +989,16 @@ const Favorites = () => {
                               <p className="font-medium">{part.name}</p>
                               <p className="text-sm text-gray-400">{part.partType}</p>
                             </div>
-                            <p className="text-green-400 font-semibold">${part.price}</p>
+                            <div className="text-right">
+                              <p className="text-green-400 font-semibold">
+                                {formatPrice(part.price)}
+                              </p>
+                              {showPHP && conversionRate && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  ≈ ${Number(part.price).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -842,8 +1014,13 @@ const Favorites = () => {
                       <div>
                         <p className="text-gray-400 mb-2">Total Price</p>
                         <p className="text-4xl font-bold text-green-400">
-                          ${Number(selectedFavorite.total_price).toLocaleString()}
+                          {formatTotalPrice(selectedFavorite.total_price)}
                         </p>
+                        {showPHP && conversionRate && (
+                          <p className="text-sm text-gray-400 mt-2">
+                            ≈ ${Number(selectedFavorite.total_price).toLocaleString()}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -857,6 +1034,13 @@ const Favorites = () => {
                           {selectedFavorite.category || 'Uncategorized'}
                         </p>
                       </div>
+
+                      {conversionRate && (
+                        <div className="p-3 bg-gray-800/50 rounded-lg">
+                          <p className="text-sm text-gray-400 mb-1">Exchange Rate</p>
+                          <p className="font-medium">1 USD = {conversionRate.toFixed(4)} PHP</p>
+                        </div>
+                      )}
 
                       <div className="pt-6 border-t border-gray-700">
                         <button
@@ -879,6 +1063,7 @@ const Favorites = () => {
                     </div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/logo';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';    
+import autoTable from 'jspdf-autotable';
 import { Heart } from 'lucide-react';
 
 const PartsList = () => {
@@ -31,8 +31,82 @@ const PartsList = () => {
     const [loading, setLoading] = useState(false);
     const [isLikedCurrent, setIsLikedCurrent] = useState(false);
 
+    // Currency conversion states
+    const [conversionRate, setConversionRate] = useState(null);
+    const [conversionLoading, setConversionLoading] = useState(false);
+    const [conversionError, setConversionError] = useState(null);
+    const [showPHP, setShowPHP] = useState(false); // Toggle between USD and PHP
+
     // Base API URL - update this to match your backend
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+    // Exchange Rate API
+    const EXCHANGE_API_KEY = '391e07669e1a5aa7dd44cc53';
+    const EXCHANGE_API_URL = `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/USD/PHP`;
+
+    // Fetch conversion rate
+    const fetchConversionRate = async () => {
+        try {
+            setConversionLoading(true);
+            setConversionError(null);
+
+            const response = await fetch(EXCHANGE_API_URL);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch exchange rate: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.result === 'success') {
+                setConversionRate(data.conversion_rate);
+                // Store in localStorage for caching (valid for 1 hour)
+                localStorage.setItem('usd_to_php_rate', JSON.stringify({
+                    rate: data.conversion_rate,
+                    timestamp: Date.now()
+                }));
+            } else {
+                throw new Error(data['error-type'] || 'Failed to get conversion rate');
+            }
+        } catch (error) {
+            console.error('Error fetching conversion rate:', error);
+            setConversionError(error.message);
+
+            // Try to use cached rate if available
+            const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
+            if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) { // 1 hour cache
+                setConversionRate(cachedRate.rate);
+            }
+        } finally {
+            setConversionLoading(false);
+        }
+    };
+
+    // Convert USD to PHP
+    const convertToPHP = (usdAmount) => {
+        if (!conversionRate || !usdAmount) return 0;
+        return usdAmount * conversionRate;
+    };
+
+    // Format price based on selected currency
+    const formatPrice = (price) => {
+        if (showPHP && conversionRate) {
+            if (typeof price === "string") {
+                price = parseFloat(price.replace(/[^0-9.-]+/g, ""));
+            }
+            const phpAmount = convertToPHP(price);
+            return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Format total price with both currencies
+    const formatTotalPrice = () => {
+        if (showPHP && conversionRate) {
+            const phpAmount = convertToPHP(totalPrice);
+            return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return `$${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
 
     // Fix image URLs by adding https: prefix if needed
     const fixImageUrl = (url) => {
@@ -122,103 +196,103 @@ const PartsList = () => {
     // Check if current build is liked
     const checkIfCurrentBuildIsLiked = () => {
         const user = JSON.parse(sessionStorage.getItem('user'));
-        let likedBuildsData = JSON.parse(localStorage.getItem(`favoriteBuilds`,[]));
+        let likedBuildsData = JSON.parse(localStorage.getItem(`favoriteBuilds`, []));
         if (user) {
-            likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`,[]));
+            likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`, []));
         }
         const currentBuild = allBuilds[currentBuildIndex];
-        
+
         if (!currentBuild) return false;
         if (!likedBuildsData) return false;
-        return likedBuildsData.some(build => 
-            build.buildId === currentBuildIndex && 
+        return likedBuildsData.some(build =>
+            build.buildId === currentBuildIndex &&
             build.total_price === currentBuild.total_price
         );
     };
 
     const handleHeartToggle = async () => {
-    const user = JSON.parse(sessionStorage.getItem('user'));
-    const currentBuild = allBuilds[currentBuildIndex];
-    
-    if (!currentBuild) {
-        console.error('No current build found');
-        return;
-    }
-    
-    if (!user || user.isGuest || !user.id) {
-        console.log('User not logged in, redirecting to login');
-        navigate('/login');
-        return;
-    }
-    const category = JSON.parse(sessionStorage.getItem('category'));
-    const buildData = {
-        buildId: Number(currentBuildIndex), // Ensure it's a number
-        total_price: Number(currentBuild.total_price) || 0, 
-        category: category,
-        parts: (currentBuild.parts || []).map(part => ({
-            partType: part.partType || 'Unknown',
-            name: part.name || 'Unnamed Part',
-            price: Number(part.price) || 0,
-            image: part.image || '',
-            id: part.id || 0
-        })),
-        timestamp: new Date().toISOString()
-    };
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        const currentBuild = allBuilds[currentBuildIndex];
 
-    try {
-        const requestBody = {
-            user_id: Number(user.id), 
-            build_data: buildData
+        if (!currentBuild) {
+            console.error('No current build found');
+            return;
+        }
+
+        if (!user || user.isGuest || !user.id) {
+            console.log('User not logged in, redirecting to login');
+            navigate('/login');
+            return;
+        }
+        const category = JSON.parse(sessionStorage.getItem('category'));
+        const buildData = {
+            buildId: Number(currentBuildIndex), // Ensure it's a number
+            total_price: Number(currentBuild.total_price) || 0,
+            category: category,
+            parts: (currentBuild.parts || []).map(part => ({
+                partType: part.partType || 'Unknown',
+                name: part.name || 'Unnamed Part',
+                price: Number(part.price) || 0,
+                image: part.image || '',
+                id: part.id || 0
+            })),
+            timestamp: new Date().toISOString()
         };
 
+        try {
+            const requestBody = {
+                user_id: Number(user.id),
+                build_data: buildData
+            };
 
-        const response = await fetch(`${API_BASE_URL}/favorites`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-        });
 
-        
-        if (response.ok) {
+            const response = await fetch(`${API_BASE_URL}/favorites`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+
+            if (response.ok) {
+                saveBuildToLocalStorage(buildData);
+                setIsLikedCurrent(!isLikedCurrent);
+            } else {
+                // Get error details
+                const errorData = await response.json();
+                console.error('Error details:', errorData);
+
+                if (errorData.errors) {
+                    console.error('Validation errors:', errorData.errors);
+                    // Show specific error messages
+                    const errorMessages = Object.values(errorData.errors).flat().join(', ');
+                    alert(`Validation error: ${errorMessages}`);
+                } else {
+                    alert(errorData.message || 'Failed to save favorite');
+                }
+            }
+        } catch (error) {
+            console.error('Network error:', error);
+            alert('Network error. Please try again.');
+
             saveBuildToLocalStorage(buildData);
             setIsLikedCurrent(!isLikedCurrent);
-        } else {
-            // Get error details
-            const errorData = await response.json();
-            console.error('Error details:', errorData);
-            
-            if (errorData.errors) {
-                console.error('Validation errors:', errorData.errors);
-                // Show specific error messages
-                const errorMessages = Object.values(errorData.errors).flat().join(', ');
-                alert(`Validation error: ${errorMessages}`);
-            } else {
-                alert(errorData.message || 'Failed to save favorite');
-            }
         }
-    } catch (error) {
-        console.error('Network error:', error);
-        alert('Network error. Please try again.');
-        
-        saveBuildToLocalStorage(buildData);
-        setIsLikedCurrent(!isLikedCurrent);
-    }
-};
+    };
 
     // Save build to localStorage
     const saveBuildToLocalStorage = (buildData) => {
         const user = JSON.parse(sessionStorage.getItem('user'));
         const likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`) || '[]');
-        
+
         // Check if build already exists
-        const existingIndex = likedBuildsData.findIndex(build => 
-            build.buildId === buildData.buildId && 
+        const existingIndex = likedBuildsData.findIndex(build =>
+            build.buildId === buildData.buildId &&
             build.total_price === buildData.total_price
         );
-        
+
         if (existingIndex >= 0) {
             // Remove if already liked
             likedBuildsData.splice(existingIndex, 1);
@@ -226,9 +300,9 @@ const PartsList = () => {
             // Add if not liked
             likedBuildsData.push(buildData);
         }
-        
+
         localStorage.setItem(`${user.id}favoriteBuilds`, JSON.stringify(likedBuildsData));
-        
+
         // Update local state
         setLikedBuilds(likedBuildsData.map(build => build.buildId));
     };
@@ -406,6 +480,9 @@ const PartsList = () => {
         } else {
             console.log('No builds found in session storage');
         }
+
+        // Fetch conversion rate on component mount
+        fetchConversionRate();
     }, []);
 
     // Update isLikedCurrent when currentBuildIndex changes
@@ -415,6 +492,8 @@ const PartsList = () => {
 
     const handleAskAI = async () => {
         const user = JSON.parse(sessionStorage.getItem('user'));
+        const category = JSON.parse(sessionStorage.getItem('category'));
+        sessionStorage.setItem('category', JSON.stringify(category));
         console.log(user);
         if (!user) {
             navigate('/login');
@@ -473,26 +552,45 @@ const PartsList = () => {
         pdf.setFont(undefined, 'bold');
         pdf.text("AutoBuild PC", 105, 20, { align: "center" });
 
+        // Add currency information
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'normal');
+        if (conversionRate) {
+            pdf.text(`Exchange Rate: 1 USD = ${conversionRate.toFixed(4)} PHP`, 105, 30, { align: "center" });
+        }
+
         // Table
-        const tableColumn = ["Part Type", "Component Name", "Price"];
-        const tableRows = parts.map(part => [
-            part.partType,
-            part.name,
-            `$${part.price.toLocaleString()}`
-        ]);
+        const tableColumn = ["Part Type", "Component Name", "Price (USD)"];
+        if (showPHP) {
+            tableColumn.push("Price (PHP)");
+        }
+
+        const tableRows = parts.map(part => {
+            const row = [
+                part.partType,
+                part.name,
+                `$${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            ];
+            if (showPHP && conversionRate) {
+                const phpPrice = convertToPHP(part.price);
+                row.push(`P${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            }
+            return row;
+        });
 
         autoTable(pdf, {
-            startY: 35,
+            startY: 40,
             head: [tableColumn],
             body: tableRows,
             theme: 'grid',
             headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
             bodyStyles: { textColor: 0 },
-            styles: { fontSize: 12, cellPadding: 3 },
+            styles: { fontSize: 10, cellPadding: 3 },
             columnStyles: {
-                0: { cellWidth: 35 },
-                1: { cellWidth: 110 },
-                2: { cellWidth: 30, halign: 'right' }
+                0: { cellWidth: 30 },
+                1: { cellWidth: showPHP ? 75 : 100 },
+                2: { cellWidth: 35, halign: 'right' },
+                ...(showPHP && { 3: { cellWidth: 40, halign: 'right' } })
             }
         });
 
@@ -500,7 +598,12 @@ const PartsList = () => {
         const finalY = pdf.lastAutoTable.finalY + 10;
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Total Price: $${totalPrice.toLocaleString()}`, 15, finalY);
+        pdf.text(`Total Price (USD): $${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
+
+        if (conversionRate) {
+            const totalPHP = convertToPHP(totalPrice);
+            pdf.text(`Total Price (PHP): P${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+        }
 
         // Save PDF
         pdf.save("AutoBuildPC_Build.pdf");
@@ -511,8 +614,8 @@ const PartsList = () => {
             <Logo />
             {/* Main Container */}
             <div className="flex-1 max-w-7xl w-full mx-auto border border-gray-600 rounded-lg p-6 flex flex-col overflow-hidden">
-  
-                
+
+
 
                 {/* Parts List Container */}
                 <div className="flex-1 border border-gray-700 rounded-lg mb-6 overflow-hidden flex flex-col">
@@ -575,7 +678,16 @@ const PartsList = () => {
 
                                 {/* Right group: Price */}
                                 <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                                    <span className="text-green-400 font-medium text-sm sm:text-base">$ {part.price}</span>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`${showPHP ? 'text-sm text-gray-400' : 'text-green-400 font-medium text-sm sm:text-base'}`}>
+                                            {showPHP && conversionRate ? `$${part.price.toLocaleString()}` : formatPrice(part.price)}
+                                        </span>
+                                        {showPHP && conversionRate && (
+                                            <span className="text-green-400 font-medium text-sm sm:text-base">
+                                                {formatPrice(part.price)}
+                                            </span>
+                                        )}
+                                    </div>
                                     {/* Shop cart icon for quick buy */}
                                     {part.product && (
                                         <button
@@ -597,32 +709,69 @@ const PartsList = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-6">
-                    {/* Left group: Download button */}
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={generatePDF}
-                            className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px] text-sm sm:text-base whitespace-nowrap"
-                        >
-                            Download List
-                        </button>
+                <div className="flex flex-col gap-4 mb-6">
+
+                    {/* Action Buttons and Total Price */}
+                    <div className="flex items-center justify-between">
+                        {/* Left group: Download button */}
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={handleHeartToggle}
-                                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-                                title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
+                                onClick={generatePDF}
+                                className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px] text-sm sm:text-base whitespace-nowrap"
                             >
-                                <Heart 
-                                    size={24} 
-                                    className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
-                                />
+                                Download List
                             </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={handleHeartToggle}
+                                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                    title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
+                                >
+                                    <Heart
+                                        size={24}
+                                        className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
+                                    />
+                                </button>
+                            </div>
+                            {/* Currency Toggle Button */}
+                            <div className="flex items-center justify-end">
+                                <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setShowPHP(false)}
+                                        className={`px-4 py-2 rounded-md transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        USD
+                                    </button>
+                                    <button
+                                        onClick={() => setShowPHP(true)}
+                                        disabled={!conversionRate || conversionLoading}
+                                        className={`px-4 py-2 rounded-md transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                            } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        {conversionLoading ? 'Loading...' : 'PHP'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Currency Info */}
+                            {conversionRate && (
+                                <div className="text-sm text-gray-400 text-right">
+                                    Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
+                                </div>
+                            )}
+
                         </div>
-                    </div>
-                    
-                    {/* Total Price */}
-                    <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex items-center justify-center">
-                        $ {totalPrice.toLocaleString()}
+
+                        {/* Total Price */}
+                        <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex flex-col items-center justify-center">
+                            <div className="text-base">{formatTotalPrice()}</div>
+                            {showPHP && conversionRate && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                    ≈ ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -706,8 +855,13 @@ const PartsList = () => {
                                         <div>
                                             <div className="text-sm text-gray-400">Price</div>
                                             <div className="text-2xl font-bold text-green-400">
-                                                {partDetails?.price || selectedPart.price}
+                                                {formatPrice(partDetails?.price || selectedPart.price)}
                                             </div>
+                                            {conversionRate && (
+                                                <div className="text-sm text-gray-400 mt-1">
+                                                    ≈ {(partDetails?.price || selectedPart.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Specifications */}
