@@ -51,15 +51,16 @@ const AskAI = () => {
 
     const determineSentiment = (text) => {
         const lowerText = text.toLowerCase();
-
-        // BAD keywords
-        if (lowerText.includes("bad") || lowerText.includes("terrible") || lowerText.includes("poor") || lowerText.includes("problem") || lowerText.includes("slow") || lowerText.includes("incompatible") || lowerText.includes("bottleneck")) {
-            return 'bad';
-        }
+        
         // GOOD keywords
-        else if (lowerText.includes("good") || lowerText.includes("great") || lowerText.includes("excellent") || lowerText.includes("fast") || lowerText.includes("awesome") || lowerText.includes("solid") || lowerText.includes("compatible") || lowerText.includes("recommend")) {
+        if (lowerText.includes("good") || lowerText.includes("great") || lowerText.includes("excellent") || lowerText.includes("fast") || lowerText.includes("awesome") || lowerText.includes("solid") || lowerText.includes("compatible") || lowerText.includes("recommend")) {
             return 'good';
         }
+        // BAD keywords
+        else if (lowerText.includes("bad") || lowerText.includes("terrible") || lowerText.includes("poor") || lowerText.includes("problem") || lowerText.includes("slow") || lowerText.includes("incompatible") || lowerText.includes("bottleneck")) {
+            return 'bad';
+        }
+       
         // Everything else is neutral
         else {
             return 'neutral';
@@ -163,7 +164,10 @@ const AskAI = () => {
 
             return transformedBuild;
         };
-        const category = JSON.parse(sessionStorage.getItem('category'));
+        let category = JSON.parse(sessionStorage.getItem('category'));
+        if (Array.isArray(category)) {
+            category = category.join(',');
+        }
         // Prepare request data
         const requestData = {
             question: inputValue,
@@ -501,22 +505,22 @@ const AskAI = () => {
 
     return (
         <div className="h-screen bg-black text-white flex flex-col">
-            {/* Header - Always Fixed */}
-            <div className="p-8">
+            {/* Header - Smaller */}
+            <div className="px-8 py-4">
                 <div className="flex items-center justify-between">
                     <Link to="/">
-                        <h1 className="text-pink-500 text-3xl font-bold">AutoBuild PC</h1>
+                        <h1 className="text-pink-500 text-2xl font-bold">AutoBuild PC</h1>
                     </Link>
                     <div className="flex items-center gap-6">
                         <button
                             onClick={() => navigate('/lists')}
-                            className="text-gray-400 hover:text-white transition-colors"
+                            className="text-gray-400 hover:text-white transition-colors text-sm"
                         >
                             Back to Build
                         </button>
                         <button
                             onClick={handleStartOver}
-                            className="text-gray-400 hover:text-white transition-colors"
+                            className="text-gray-400 hover:text-white transition-colors text-sm"
                         >
                             Start Over
                         </button>
@@ -524,7 +528,7 @@ const AskAI = () => {
                 </div>
             </div>
 
-            {/* Main Content Area */}
+            {/* Main Content Area - More space for chat */}
             <div className="flex-1 flex flex-col overflow-hidden">
                 {messages.length === 1 ? (
                     // Initial State - Centered with Build Summary
@@ -532,35 +536,38 @@ const AskAI = () => {
                         <h2 className="text-2xl font-semibold text-center mb-8">
                             Ask me about your build!
                         </h2>
-
                         {renderBuildSummary()}
                     </div>
                 ) : (
-                    // Chat State - Messages + Input at Bottom
+                    // Chat State - Optimized for more chat view
                     <>
-                        {/* Chat Area */}
-                        <div className="flex-1 overflow-y-auto px-8 py-4 parts-scrollbar transition-all duration-500 ease-in-out">
-                            <div className="max-w-7xl mx-auto space-y-6">
+                        {/* Chat Area - Made larger */}
+                        <div className="flex-1 overflow-y-auto px-6 py-2 parts-scrollbar">
+                            <div className="max-w-6xl mx-auto space-y-4">
                                 {messages.slice(1).map((message, index) => (
                                     <div
                                         key={index}
-                                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                     >
-                                        <div className={`max-w-3xl rounded-lg p-4 relative ${message.role === 'user'
-                                            ? 'bg-gray-800 text-white'
-                                            : 'bg-gray-900 text-gray-200'
-                                            }`}
+                                        <div className={`max-w-[85%] rounded-xl p-5 relative ${
+                                            message.role === 'user'
+                                            ? 'bg-gradient-to-r from-gray-800 to-gray-900 text-white'
+                                            : 'bg-gradient-to-r from-gray-900 to-black text-gray-200 border border-gray-800'
+                                        }`}
                                         >
                                             {/* Message Content */}
-                                            {renderMessageContent(message.content, message.hasBullets, message.youtubeLinks)}
+                                            <div className="mb-2">
+                                                {renderMessageContent(message.content, message.hasBullets, message.youtubeLinks)}
+                                            </div>
 
-                                            {/* Sentiment Badge */}
+                                            {/* Sentiment Badge - Smaller */}
                                             {message.sentiment && (
-                                                <div className="mt-3 pt-2 border-t border-gray-700">
-                                                    <span className={`text-xs font-semibold px-2 py-1 rounded ${message.sentiment === 'good' ? 'bg-green-500/20 text-green-400' :
-                                                        message.sentiment === 'neutral' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-red-500/20 text-red-400'
-                                                        }`}>
+                                                <div className="mt-3 pt-3 border-t border-gray-700/50">
+                                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                                        message.sentiment === 'good' ? 'bg-green-500/10 text-green-400' :
+                                                        message.sentiment === 'neutral' ? 'bg-yellow-500/10 text-yellow-400' :
+                                                        'bg-red-500/10 text-red-400'
+                                                    }`}>
                                                         {message.sentiment === 'good' ? '✅ Positive' :
                                                             message.sentiment === 'neutral' ? '⚪ Neutral' :
                                                             '⚠️ Concerns'}
@@ -570,9 +577,10 @@ const AskAI = () => {
                                         </div>
                                     </div>
                                 ))}
+                                
                                 {isLoading && (
                                     <div className="flex justify-start">
-                                        <div className="bg-gray-900 rounded-lg p-4">
+                                        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
                                             <div className="flex space-x-2">
                                                 <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
                                                 <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -586,24 +594,26 @@ const AskAI = () => {
                             </div>
                         </div>
 
-                        {/* Suggested Questions */}
-                        <div className="px-8 py-4">
-                            <div className="max-w-7xl mx-auto">
-                                <div className="text-sm text-gray-400 mb-3">Quick Questions:</div>
-                                <div className="flex flex-wrap gap-3">
+                        {/* Suggested Questions - Smaller and more compact */}
+                        <div className="px-6 py-3 border-t border-gray-800">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="text-xs text-gray-500 mb-2">Quick Questions:</div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                     {[
-                                        "Compatibility & Performance Score",
-                                        "What software works best with my build?",
-                                        "Any hidden compatibility issues?",
-                                        "Step-by-step assembly guide",
-                                        "Best upgrade path for future?",
-                                        "Power requirements & efficiency",
-                                        "Overclocking potential & tips"
+                                        "Compatibility Score",
+                                        "Software recommendations",
+                                        "Hidden issues?",
+                                        "Assembly guide",
+                                        "Upgrade path",
+                                        "Power efficiency",
+                                        "Overclocking tips",
+                                        "Performance"
                                     ].map((question, index) => (
                                         <button
                                             key={index}
                                             onClick={() => setInputValue(question)}
-                                            className="bg-gray-800 hover:bg-gray-700 rounded-lg px-4 py-3 text-sm transition-colors border border-gray-700 text-left flex-1 min-w-[calc(50%-0.375rem)] lg:min-w-0"
+                                            className="bg-gray-800 hover:bg-gray-700 rounded-lg px-3 py-2 text-xs transition-colors border border-gray-700 truncate"
+                                            title={question}
                                         >
                                             {question}
                                         </button>
@@ -612,31 +622,31 @@ const AskAI = () => {
                             </div>
                         </div>
 
-                        {/* Input Area - Bottom */}
-                        <div className="p-8 border-t border-gray-800 transition-all duration-500 ease-in-out">
-                            <div className="max-w-7xl mx-auto">
-                                <div className="flex items-center gap-4 bg-gray-800 rounded-full px-6 py-4">
+                        {/* Input Area - More compact */}
+                        <div className="px-6 py-4 border-t border-gray-800 bg-black/50">
+                            <div className="max-w-6xl mx-auto">
+                                <div className="flex items-center gap-3 bg-gray-800/50 rounded-2xl px-5 py-3 border border-gray-700">
                                     <input
                                         type="text"
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
                                         onKeyPress={handleKeyPress}
-                                        placeholder="Ask AI about your build"
-                                        className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none"
+                                        placeholder="Ask AI about your build..."
+                                        className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none text-sm"
                                     />
                                     <button
                                         onClick={handleSendMessage}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-2 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium px-5 py-2 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
                                     >
                                         {isLoading ? (
                                             <>
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
                                                 Sending...
                                             </>
                                         ) : (
                                             <>
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                                 </svg>
                                                 Send
