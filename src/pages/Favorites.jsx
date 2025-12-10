@@ -18,7 +18,7 @@ const Favorites = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
-  
+
   // Currency conversion states
   const [conversionRate, setConversionRate] = useState(null);
   const [conversionLoading, setConversionLoading] = useState(false);
@@ -42,7 +42,7 @@ const Favorites = () => {
   ];
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-  
+
   // Exchange Rate API
   const EXCHANGE_API_KEY = '391e07669e1a5aa7dd44cc53';
   const EXCHANGE_API_URL = `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/USD/PHP`;
@@ -110,14 +110,14 @@ const Favorites = () => {
     try {
       setConversionLoading(true);
       setConversionError(null);
-      
+
       const response = await fetch(EXCHANGE_API_URL);
       if (!response.ok) {
         throw new Error(`Failed to fetch exchange rate: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.result === 'success') {
         setConversionRate(data.conversion_rate);
         // Store in localStorage for caching (valid for 1 hour)
@@ -131,7 +131,7 @@ const Favorites = () => {
     } catch (error) {
       console.error('Error fetching conversion rate:', error);
       setConversionError(error.message);
-      
+
       // Try to use cached rate if available
       const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
       if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) { // 1 hour cache
@@ -340,7 +340,7 @@ const Favorites = () => {
     // Title
     pdf.setFontSize(22);
     pdf.setFont(undefined, 'bold');
-    pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
+    pdf.text("AutoBuild PC", 105, 20, { align: "center" });
 
     // Currency info if PHP is selected
     if (showPHP && conversionRate) {
@@ -359,16 +359,20 @@ const Favorites = () => {
     }
 
     // Table
-    const tableColumn = ["Part Type", "Component Name", "Price (USD)", showPHP ? "Price (PHP)" : ""].filter(col => col !== "");
+    const tableColumn = ["Part Type", "Component Name", "Price (USD)"];
+    if (showPHP) {
+      tableColumn.push("Price (PHP)");
+    }
+
     const tableRows = favorite.parts.map(part => {
       const row = [
         part.partType,
         part.name,
-        `$${part.price.toLocaleString()}`
+        `$${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       ];
       if (showPHP && conversionRate) {
         const phpPrice = convertToPHP(part.price);
-        row.push(`₱${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        row.push(`P${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
       }
       return row;
     });
@@ -382,12 +386,12 @@ const Favorites = () => {
       theme: 'grid',
       headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
       bodyStyles: { textColor: 0 },
-      styles: { fontSize: 12, cellPadding: 3 },
+      styles: { fontSize: 10, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 90 },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 40, halign: 'right' }
+        0: { cellWidth: 30 },
+        1: { cellWidth: showPHP ? 75 : 100 },
+        2: { cellWidth: 35, halign: 'right' },
+        ...(showPHP && { 3: { cellWidth: 40, halign: 'right' } })
       }
     });
 
@@ -395,11 +399,11 @@ const Favorites = () => {
     const finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
-    pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString()}`, 15, finalY);
-    
+    pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
+
     if (showPHP && conversionRate) {
       const totalPHP = convertToPHP(favorite.total_price);
-      pdf.text(`Total Price (PHP): ₱${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+      pdf.text(`Total Price (PHP): P${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
     }
 
     // Save PDF
@@ -430,7 +434,7 @@ const Favorites = () => {
 
         pdf.setFontSize(22);
         pdf.setFont(undefined, 'bold');
-        pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
+        pdf.text("AutoBuild PC", 105, 20, { align: "center" });
 
         // Currency info if PHP is selected
         if (showPHP && conversionRate) {
@@ -448,16 +452,20 @@ const Favorites = () => {
 
         const startY = favorite.category ? (showPHP && conversionRate ? 60 : 50) : (showPHP && conversionRate ? 55 : 45);
 
-        const tableColumn = ["Part Type", "Component Name", "Price (USD)", showPHP ? "Price (PHP)" : ""].filter(col => col !== "");
+        const tableColumn = ["Part Type", "Component Name", "Price (USD)"];
+        if (showPHP) {
+          tableColumn.push("Price (PHP)");
+        }
+
         const tableRows = favorite.parts.map(part => {
           const row = [
             part.partType,
             part.name,
-            `$${part.price.toLocaleString()}`
+            `$${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           ];
           if (showPHP && conversionRate) {
             const phpPrice = convertToPHP(part.price);
-            row.push(`₱${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+            row.push(`P${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
           }
           return row;
         });
@@ -469,23 +477,23 @@ const Favorites = () => {
           theme: 'grid',
           headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
           bodyStyles: { textColor: 0 },
-          styles: { fontSize: 12, cellPadding: 3 },
+          styles: { fontSize: 10, cellPadding: 3 },
           columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 90 },
-            2: { cellWidth: 30, halign: 'right' },
-            3: { cellWidth: 40, halign: 'right' }
+            0: { cellWidth: 30 },
+            1: { cellWidth: showPHP ? 75 : 100 },
+            2: { cellWidth: 35, halign: 'right' },
+            ...(showPHP && { 3: { cellWidth: 40, halign: 'right' } })
           }
         });
 
         const finalY = pdf.lastAutoTable.finalY + 10;
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString()}`, 15, finalY);
-        
+        pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
+
         if (showPHP && conversionRate) {
           const totalPHP = convertToPHP(favorite.total_price);
-          pdf.text(`Total Price (PHP): ₱${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+          pdf.text(`Total Price (PHP): P${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
         }
 
         pdf.setFontSize(8);
@@ -564,18 +572,16 @@ const Favorites = () => {
             <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
               <button
                 onClick={() => setShowPHP(false)}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  !showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
-                }`}
+                className={`px-4 py-2 rounded-md transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                  }`}
               >
                 USD
               </button>
               <button
                 onClick={() => setShowPHP(true)}
                 disabled={!conversionRate || conversionLoading}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
-                } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`px-4 py-2 rounded-md transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                  } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {conversionLoading ? 'Loading...' : 'PHP'}
               </button>
@@ -617,28 +623,34 @@ const Favorites = () => {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
 
               {/* Category Dropdown */}
               {showCategoryFilter && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto parts-scrollbar">
                   <div className="p-2">
                     {categories.map(category => {
-                      const count = category === 'All'
-                        ? favorites.length
-                        : category === 'Uncategorized'
-                          ? categoryStats['Uncategorized'] || 0
-                          : categoryStats[category] || 0;
+                      const count =
+                        category === "All"
+                          ? favorites.length
+                          : category === "Uncategorized"
+                            ? categoryStats["Uncategorized"] || 0
+                            : categoryStats[category] || 0;
 
                       return (
                         <button
                           key={category}
                           onClick={() => filterByCategory(category)}
                           className={`w-full flex items-center justify-between px-4 py-2 rounded mb-1 transition-colors ${selectedCategory === category
-                            ? 'bg-pink-500 text-white'
-                            : 'hover:bg-gray-800 text-gray-300'
+                            ? "bg-pink-500 text-white"
+                            : "hover:bg-gray-800 text-gray-300"
                             }`}
                         >
                           <span>{category}</span>
@@ -659,38 +671,6 @@ const Favorites = () => {
         {conversionRate && (
           <div className="mb-4 text-sm text-gray-400">
             Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
-          </div>
-        )}
-
-        {/* Category Quick Filters */}
-        {favorites.length > 0 && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => filterByCategory('All')}
-                className={`px-4 py-2 rounded-full transition-colors ${selectedCategory === 'All'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  }`}
-              >
-                All ({favorites.length})
-              </button>
-
-              {Object.entries(categoryStats)
-                .sort((a, b) => b[1] - a[1])
-                .map(([category, count]) => (
-                  <button
-                    key={category}
-                    onClick={() => filterByCategory(category)}
-                    className={`px-4 py-2 rounded-full transition-colors ${selectedCategory === category
-                      ? 'bg-pink-500 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                      }`}
-                  >
-                    {category} ({count})
-                  </button>
-                ))}
-            </div>
           </div>
         )}
 
@@ -882,7 +862,7 @@ const Favorites = () => {
           onClick={() => setShowDetailModal(false)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto parts-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -918,23 +898,20 @@ const Favorites = () => {
                     <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
                       <button
                         onClick={() => setShowPHP(false)}
-                        className={`px-3 py-1 text-xs rounded transition-colors ${
-                          !showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
-                        }`}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'}`}
                       >
                         USD
                       </button>
                       <button
                         onClick={() => setShowPHP(true)}
                         disabled={!conversionRate}
-                        className={`px-3 py-1 text-xs rounded transition-colors ${
-                          showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
-                        } ${!conversionRate ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'} ${!conversionRate ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         PHP
                       </button>
                     </div>
                   </div>
+
                   <div className="space-y-4">
                     {selectedFavorite.parts.map((part, index) => (
                       <div
@@ -949,10 +926,10 @@ const Favorites = () => {
                             onError={(e) => {
                               e.target.style.display = 'none';
                               e.target.parentElement.innerHTML = `
-                                <div class="w-16 h-16 rounded border border-gray-600 flex items-center justify-center bg-gray-700">
-                                  ${getPartIcon(part.partType)}
-                                </div>
-                              `;
+                          <div class="w-16 h-16 rounded border border-gray-600 flex items-center justify-center bg-gray-700">
+                            ${getPartIcon(part.partType)}
+                          </div>
+                        `;
                             }}
                           />
                         )}
@@ -1036,6 +1013,7 @@ const Favorites = () => {
                     </div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>

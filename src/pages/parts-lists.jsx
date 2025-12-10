@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from '../components/logo';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';    
+import autoTable from 'jspdf-autotable';
 import { Heart } from 'lucide-react';
 
 const PartsList = () => {
@@ -30,7 +30,7 @@ const PartsList = () => {
     const [partDetails, setPartDetails] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isLikedCurrent, setIsLikedCurrent] = useState(false);
-    
+
     // Currency conversion states
     const [conversionRate, setConversionRate] = useState(null);
     const [conversionLoading, setConversionLoading] = useState(false);
@@ -39,7 +39,7 @@ const PartsList = () => {
 
     // Base API URL - update this to match your backend
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-    
+
     // Exchange Rate API
     const EXCHANGE_API_KEY = '391e07669e1a5aa7dd44cc53';
     const EXCHANGE_API_URL = `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/USD/PHP`;
@@ -49,14 +49,14 @@ const PartsList = () => {
         try {
             setConversionLoading(true);
             setConversionError(null);
-            
+
             const response = await fetch(EXCHANGE_API_URL);
             if (!response.ok) {
                 throw new Error(`Failed to fetch exchange rate: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             if (data.result === 'success') {
                 setConversionRate(data.conversion_rate);
                 // Store in localStorage for caching (valid for 1 hour)
@@ -70,7 +70,7 @@ const PartsList = () => {
         } catch (error) {
             console.error('Error fetching conversion rate:', error);
             setConversionError(error.message);
-            
+
             // Try to use cached rate if available
             const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
             if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) { // 1 hour cache
@@ -91,7 +91,7 @@ const PartsList = () => {
     const formatPrice = (price) => {
         if (showPHP && conversionRate) {
             if (typeof price === "string") {
-                price = parseFloat(price.replace(/[^0-9.-]+/g,""));
+                price = parseFloat(price.replace(/[^0-9.-]+/g, ""));
             }
             const phpAmount = convertToPHP(price);
             return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -196,103 +196,103 @@ const PartsList = () => {
     // Check if current build is liked
     const checkIfCurrentBuildIsLiked = () => {
         const user = JSON.parse(sessionStorage.getItem('user'));
-        let likedBuildsData = JSON.parse(localStorage.getItem(`favoriteBuilds`,[]));
+        let likedBuildsData = JSON.parse(localStorage.getItem(`favoriteBuilds`, []));
         if (user) {
-            likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`,[]));
+            likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`, []));
         }
         const currentBuild = allBuilds[currentBuildIndex];
-        
+
         if (!currentBuild) return false;
         if (!likedBuildsData) return false;
-        return likedBuildsData.some(build => 
-            build.buildId === currentBuildIndex && 
+        return likedBuildsData.some(build =>
+            build.buildId === currentBuildIndex &&
             build.total_price === currentBuild.total_price
         );
     };
 
     const handleHeartToggle = async () => {
-    const user = JSON.parse(sessionStorage.getItem('user'));
-    const currentBuild = allBuilds[currentBuildIndex];
-    
-    if (!currentBuild) {
-        console.error('No current build found');
-        return;
-    }
-    
-    if (!user || user.isGuest || !user.id) {
-        console.log('User not logged in, redirecting to login');
-        navigate('/login');
-        return;
-    }
-    const category = JSON.parse(sessionStorage.getItem('category'));
-    const buildData = {
-        buildId: Number(currentBuildIndex), // Ensure it's a number
-        total_price: Number(currentBuild.total_price) || 0, 
-        category: category,
-        parts: (currentBuild.parts || []).map(part => ({
-            partType: part.partType || 'Unknown',
-            name: part.name || 'Unnamed Part',
-            price: Number(part.price) || 0,
-            image: part.image || '',
-            id: part.id || 0
-        })),
-        timestamp: new Date().toISOString()
-    };
+        const user = JSON.parse(sessionStorage.getItem('user'));
+        const currentBuild = allBuilds[currentBuildIndex];
 
-    try {
-        const requestBody = {
-            user_id: Number(user.id), 
-            build_data: buildData
+        if (!currentBuild) {
+            console.error('No current build found');
+            return;
+        }
+
+        if (!user || user.isGuest || !user.id) {
+            console.log('User not logged in, redirecting to login');
+            navigate('/login');
+            return;
+        }
+        const category = JSON.parse(sessionStorage.getItem('category'));
+        const buildData = {
+            buildId: Number(currentBuildIndex), // Ensure it's a number
+            total_price: Number(currentBuild.total_price) || 0,
+            category: category,
+            parts: (currentBuild.parts || []).map(part => ({
+                partType: part.partType || 'Unknown',
+                name: part.name || 'Unnamed Part',
+                price: Number(part.price) || 0,
+                image: part.image || '',
+                id: part.id || 0
+            })),
+            timestamp: new Date().toISOString()
         };
 
+        try {
+            const requestBody = {
+                user_id: Number(user.id),
+                build_data: buildData
+            };
 
-        const response = await fetch(`${API_BASE_URL}/favorites`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-        });
 
-        
-        if (response.ok) {
+            const response = await fetch(`${API_BASE_URL}/favorites`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+
+            if (response.ok) {
+                saveBuildToLocalStorage(buildData);
+                setIsLikedCurrent(!isLikedCurrent);
+            } else {
+                // Get error details
+                const errorData = await response.json();
+                console.error('Error details:', errorData);
+
+                if (errorData.errors) {
+                    console.error('Validation errors:', errorData.errors);
+                    // Show specific error messages
+                    const errorMessages = Object.values(errorData.errors).flat().join(', ');
+                    alert(`Validation error: ${errorMessages}`);
+                } else {
+                    alert(errorData.message || 'Failed to save favorite');
+                }
+            }
+        } catch (error) {
+            console.error('Network error:', error);
+            alert('Network error. Please try again.');
+
             saveBuildToLocalStorage(buildData);
             setIsLikedCurrent(!isLikedCurrent);
-        } else {
-            // Get error details
-            const errorData = await response.json();
-            console.error('Error details:', errorData);
-            
-            if (errorData.errors) {
-                console.error('Validation errors:', errorData.errors);
-                // Show specific error messages
-                const errorMessages = Object.values(errorData.errors).flat().join(', ');
-                alert(`Validation error: ${errorMessages}`);
-            } else {
-                alert(errorData.message || 'Failed to save favorite');
-            }
         }
-    } catch (error) {
-        console.error('Network error:', error);
-        alert('Network error. Please try again.');
-        
-        saveBuildToLocalStorage(buildData);
-        setIsLikedCurrent(!isLikedCurrent);
-    }
-};
+    };
 
     // Save build to localStorage
     const saveBuildToLocalStorage = (buildData) => {
         const user = JSON.parse(sessionStorage.getItem('user'));
         const likedBuildsData = JSON.parse(localStorage.getItem(`${user.id}favoriteBuilds`) || '[]');
-        
+
         // Check if build already exists
-        const existingIndex = likedBuildsData.findIndex(build => 
-            build.buildId === buildData.buildId && 
+        const existingIndex = likedBuildsData.findIndex(build =>
+            build.buildId === buildData.buildId &&
             build.total_price === buildData.total_price
         );
-        
+
         if (existingIndex >= 0) {
             // Remove if already liked
             likedBuildsData.splice(existingIndex, 1);
@@ -300,9 +300,9 @@ const PartsList = () => {
             // Add if not liked
             likedBuildsData.push(buildData);
         }
-        
+
         localStorage.setItem(`${user.id}favoriteBuilds`, JSON.stringify(likedBuildsData));
-        
+
         // Update local state
         setLikedBuilds(likedBuildsData.map(build => build.buildId));
     };
@@ -560,16 +560,20 @@ const PartsList = () => {
         }
 
         // Table
-        const tableColumn = ["Part Type", "Component Name", "Price (USD)", showPHP ? "Price (PHP)" : ""].filter(col => col !== "");
+        const tableColumn = ["Part Type", "Component Name", "Price (USD)"];
+        if (showPHP) {
+            tableColumn.push("Price (PHP)");
+        }
+
         const tableRows = parts.map(part => {
             const row = [
                 part.partType,
                 part.name,
-                `$${part.price.toLocaleString()}`
+                `$${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             ];
             if (showPHP && conversionRate) {
                 const phpPrice = convertToPHP(part.price);
-                row.push(`₱${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+                row.push(`P${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
             }
             return row;
         });
@@ -581,12 +585,12 @@ const PartsList = () => {
             theme: 'grid',
             headStyles: { fillColor: [40, 40, 40], textColor: 255, fontStyle: 'bold' },
             bodyStyles: { textColor: 0 },
-            styles: { fontSize: 12, cellPadding: 3 },
+            styles: { fontSize: 10, cellPadding: 3 },
             columnStyles: {
-                0: { cellWidth: 35 },
-                1: { cellWidth: 90 },
-                2: { cellWidth: 30, halign: 'right' },
-                3: { cellWidth: 40, halign: 'right' }
+                0: { cellWidth: 30 },
+                1: { cellWidth: showPHP ? 75 : 100 },
+                2: { cellWidth: 35, halign: 'right' },
+                ...(showPHP && { 3: { cellWidth: 40, halign: 'right' } })
             }
         });
 
@@ -594,11 +598,11 @@ const PartsList = () => {
         const finalY = pdf.lastAutoTable.finalY + 10;
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Total Price (USD): $${totalPrice.toLocaleString()}`, 15, finalY);
-        
+        pdf.text(`Total Price (USD): $${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
+
         if (conversionRate) {
             const totalPHP = convertToPHP(totalPrice);
-            pdf.text(`Total Price (PHP): ₱${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+            pdf.text(`Total Price (PHP): P${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
         }
 
         // Save PDF
@@ -610,8 +614,8 @@ const PartsList = () => {
             <Logo />
             {/* Main Container */}
             <div className="flex-1 max-w-7xl w-full mx-auto border border-gray-600 rounded-lg p-6 flex flex-col overflow-hidden">
-  
-                
+
+
 
                 {/* Parts List Container */}
                 <div className="flex-1 border border-gray-700 rounded-lg mb-6 overflow-hidden flex flex-col">
@@ -706,7 +710,7 @@ const PartsList = () => {
                 </div>
 
                 <div className="flex flex-col gap-4 mb-6">
-                    
+
                     {/* Action Buttons and Total Price */}
                     <div className="flex items-center justify-between">
                         {/* Left group: Download button */}
@@ -723,44 +727,42 @@ const PartsList = () => {
                                     className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
                                     title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
                                 >
-                                    <Heart 
-                                        size={24} 
+                                    <Heart
+                                        size={24}
                                         className={isLikedCurrent ? "fill-pink-500 text-pink-500" : "text-gray-400 hover:text-pink-500"}
                                     />
                                 </button>
                             </div>
                             {/* Currency Toggle Button */}
-                    <div className="flex items-center justify-end">
-                        <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
-                            <button
-                                onClick={() => setShowPHP(false)}
-                                className={`px-4 py-2 rounded-md transition-colors ${
-                                    !showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
-                                }`}
-                            >
-                                USD
-                            </button>
-                            <button
-                                onClick={() => setShowPHP(true)}
-                                disabled={!conversionRate || conversionLoading}
-                                className={`px-4 py-2 rounded-md transition-colors ${
-                                    showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
-                                } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                {conversionLoading ? 'Loading...' : 'PHP'}
-                            </button>
-                        </div>
-                    </div>
+                            <div className="flex items-center justify-end">
+                                <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setShowPHP(false)}
+                                        className={`px-4 py-2 rounded-md transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        USD
+                                    </button>
+                                    <button
+                                        onClick={() => setShowPHP(true)}
+                                        disabled={!conversionRate || conversionLoading}
+                                        className={`px-4 py-2 rounded-md transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                            } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        {conversionLoading ? 'Loading...' : 'PHP'}
+                                    </button>
+                                </div>
+                            </div>
 
-                    {/* Currency Info */}
-                    {conversionRate && (
-                        <div className="text-sm text-gray-400 text-right">
-                            Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
-                        </div>
-                    )}
+                            {/* Currency Info */}
+                            {conversionRate && (
+                                <div className="text-sm text-gray-400 text-right">
+                                    Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
+                                </div>
+                            )}
 
                         </div>
-                        
+
                         {/* Total Price */}
                         <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex flex-col items-center justify-center">
                             <div className="text-base">{formatTotalPrice()}</div>

@@ -12,7 +12,7 @@ const Automate = () => {
     const [useCaseMinPrice, setUseCaseMinPrice] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
+
     // New state variables
     const [conversionRate, setConversionRate] = useState(null);
     const [conversionLoading, setConversionLoading] = useState(false);
@@ -26,14 +26,14 @@ const Automate = () => {
     const fetchConversionRate = async () => {
         try {
             setConversionLoading(true);
-            
+
             const response = await fetch(EXCHANGE_API_URL);
             if (!response.ok) {
                 throw new Error(`Failed to fetch exchange rate: ${response.status}`);
             }
-            
+
             const data = await response.json();
-            
+
             if (data.result === 'success') {
                 setConversionRate(data.conversion_rate);
                 // Store in localStorage for caching
@@ -46,7 +46,7 @@ const Automate = () => {
             }
         } catch (error) {
             console.error('Error fetching conversion rate:', error);
-            
+
             // Try to use cached rate if available
             const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
             if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) {
@@ -82,7 +82,7 @@ const Automate = () => {
     useEffect(() => {
         const fetchList = async () => {
             let res = JSON.parse(localStorage.getItem('categories'));
-            if (!res){
+            if (!res) {
                 const response = await fetch(`${BASE_URL}/category`);
                 res = await response.json();
                 localStorage.setItem('categories', JSON.stringify(res));
@@ -120,7 +120,7 @@ const Automate = () => {
                 // Add to selection
                 setSelectedUses(prev => [...prev, useCase]);
             }
-            
+
             // Don't update price range for multiple selection (it's hidden)
         } else {
             if (selectedUse === useCase) {
@@ -139,7 +139,7 @@ const Automate = () => {
 
     const handlePriceChange = (field, value) => {
         const numericValue = value === '' ? '' : Number(value);
-        
+
         setPriceRange(prev => ({
             ...prev,
             [field]: numericValue
@@ -164,8 +164,8 @@ const Automate = () => {
         if (!multipleSelection) {
             // Regular validation for price range (only for single selection)
             if (priceRange.max && Number(priceRange.max) < minAllowed) {
-                const displayMinAllowed = conversionRate 
-                    ? convertToPHP(minAllowed) 
+                const displayMinAllowed = conversionRate
+                    ? convertToPHP(minAllowed)
                     : minAllowed;
                 const displayFormat = conversionRate ? '₱' : '$';
                 alert(`Maximum cannot be below the minimum price of ${displayFormat}${displayMinAllowed.toLocaleString()}`);
@@ -177,7 +177,7 @@ const Automate = () => {
             category: multipleSelection ? selectedUses.join(', ') : selectedUse
         };
         if (!multipleSelection) {
-            passData ={
+            passData = {
                 ...passData,
                 min: priceRange.min ? Number(priceRange.min) : undefined,
                 max: priceRange.max ? Number(priceRange.max) : undefined
@@ -190,7 +190,7 @@ const Automate = () => {
         sessionStorage.setItem('category', JSON.stringify(
             multipleSelection ? selectedUses.join(', ') : selectedUse
         ));
-        
+
         try {
             const response = await fetch(`${BASE_URL}/min-price`, {
                 method: 'POST',
@@ -221,7 +221,7 @@ const Automate = () => {
     const handleMultipleSelectionChange = () => {
         const newValue = !multipleSelection;
         setMultipleSelection(newValue);
-        
+
         // Clear selections when switching modes
         setSelectedUse('');
         setSelectedUses([]);
@@ -333,8 +333,8 @@ const Automate = () => {
                         {/* Use Cases Selection */}
                         <div>
                             <label className="block text-white mb-4">
-                                {multipleSelection 
-                                    ? 'Select One or More Use Cases' 
+                                {multipleSelection
+                                    ? 'Select One or More Use Cases'
                                     : 'What Will You Use This PC For?'}
                                 {multipleSelection && selectedUses.length > 0 && (
                                     <span className="ml-2 text-pink-400">
@@ -361,11 +361,6 @@ const Automate = () => {
                                                     }`}
                                             >
                                                 {useCase}
-                                                {multipleSelection && isSelected && (
-                                                    <span className="text-xs bg-pink-500 text-white w-5 h-5 rounded-full flex items-center justify-center">
-                                                        ✓
-                                                    </span>
-                                                )}
                                             </button>
                                         </div>
                                     );
@@ -392,15 +387,11 @@ const Automate = () => {
                                     <input
                                         type="number"
                                         value={priceRange.min || ''}
+                                        onChange={(e) => handlePriceChange('min', e.target.value)}
                                         placeholder="0"
                                         min={0}
                                         className="w-full bg-transparent border-b-2 border-gray-600 text-white px-2 py-2 focus:outline-none focus:border-pink-500 transition-colors"
                                     />
-                                    {conversionRate && priceRange.min && (
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            ≈ {getDisplayCurrentMinPrice()}
-                                        </p>
-                                    )}
                                 </div>
 
                                 <div className="flex-1">
@@ -413,13 +404,28 @@ const Automate = () => {
                                         min={priceRange.min || 0}
                                         className="w-full bg-transparent border-b-2 border-gray-600 text-white px-2 py-2 focus:outline-none focus:border-pink-500 transition-colors"
                                     />
-                                    {conversionRate && priceRange.max && (
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            ≈ {getDisplayCurrentMaxPrice()}
-                                        </p>
-                                    )}
                                 </div>
                             </div>
+
+                            {/* PHP conversion display */}
+                            {conversionRate && (priceRange.min || priceRange.max) && (
+                                <div className="flex items-center gap-6 max-w-md mt-4">
+                                    <div className="flex-1">
+                                        {priceRange.min && (
+                                            <p className="text-sm text-gray-400">
+                                                ≈ {getDisplayCurrentMinPrice()}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        {priceRange.max && (
+                                            <p className="text-sm text-gray-400">
+                                                ≈ {getDisplayCurrentMaxPrice()}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -437,8 +443,8 @@ const Automate = () => {
                                 <>
                                     <p>• Mode: Single Selection</p>
                                     <p>• Use Case: {selectedUse || 'None'}</p>
-                                    <p>• Price Range: 
-                                        {priceRange.min ? ` ${getDisplayCurrentMinPrice()}` : ' None'} 
+                                    <p>• Price Range:
+                                        {priceRange.min ? ` ${getDisplayCurrentMinPrice()}` : ' None'}
                                         {priceRange.max ? ` - ${getDisplayCurrentMaxPrice()}` : ' - No limit'}
                                     </p>
                                 </>

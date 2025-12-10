@@ -589,7 +589,7 @@ const AskAI = () => {
                         {/* Suggested Questions */}
                         <div className="px-8 py-4">
                             <div className="max-w-7xl mx-auto">
-                                <div className="text-sm text-gray-400 mb-3">🎯 Quick Questions:</div>
+                                <div className="text-sm text-gray-400 mb-3">Quick Questions:</div>
                                 <div className="flex flex-wrap gap-3">
                                     {[
                                         "Compatibility & Performance Score",
@@ -621,7 +621,7 @@ const AskAI = () => {
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
                                         onKeyPress={handleKeyPress}
-                                        placeholder="Ask AI about your build (I'll provide bulleted responses)..."
+                                        placeholder="Ask AI about your build"
                                         className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none"
                                     />
                                     <button
