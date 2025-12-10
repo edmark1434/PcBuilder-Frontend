@@ -610,121 +610,107 @@ const PartsList = () => {
     };
 
     return (
-        <div className="h-screen bg-black text-white p-8 overflow-hidden flex flex-col">
-            <Logo />
-            {/* Main Container */}
-            <div className="flex-1 max-w-7xl w-full mx-auto border border-gray-600 rounded-lg p-6 flex flex-col overflow-hidden">
+        <div className="min-h-screen bg-black text-white p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+            <div className="max-w-7xl mx-auto">
+                <Logo />
 
-
-
-                {/* Parts List Container */}
-                <div className="flex-1 border border-gray-700 rounded-lg mb-6 overflow-hidden flex flex-col">
-                    {/* Header */}
-                    <div className="bg-gray-900 px-4 py-3 border-b border-gray-700 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="font-semibold">Parts List</span>
-                        </div>
-                        <button
-                            onClick={generateNextBuild}
-                            disabled={allBuilds.length <= 1}
-                            className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            <span className="font-regular">Generate Again</span>
-                        </button>
-                    </div>
-
-                    {/* Parts List - Scrollable */}
-                    <div className="flex-1 overflow-y-auto parts-scrollbar">
-                        {parts.map((part, index) => (
-                            <div
-                                key={`${part.id}-${index}`}
-                                className="flex items-center justify-between px-2 sm:px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer gap-2"
-                                onClick={() => handlePartClick(part)}
+                {/* Main Container */}
+                <div className="border border-gray-600 rounded-lg p-4 sm:p-6 mt-4 sm:mt-6">
+                    {/* Parts List Container */}
+                    <div className="border border-gray-700 rounded-lg mb-4 sm:mb-6 overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gray-900 px-3 sm:px-4 py-3 border-b border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span className="font-semibold text-sm sm:text-base">Parts List</span>
+                            </div>
+                            <button
+                                onClick={generateNextBuild}
+                                disabled={allBuilds.length <= 1}
+                                className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                             >
-                                {/* Left group: PartType + Image + Name */}
-                                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                                    {/* Fixed width badge for alignment */}
-                                    <span className="bg-gray-700 text-white px-2 sm:px-3 py-2 rounded w-24 sm:w-32 text-center text-xs sm:text-sm shrink-0">
-                                        {part.partType}
-                                    </span>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span className="font-regular">Generate Again</span>
+                            </button>
+                        </div>
 
-                                    {/* Image - Always in same position */}
-                                    {part.image ? (
-                                        <img
-                                            src={part.image}
-                                            alt={part.name}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setZoomedImage(part.image);
-                                            }}
-                                            className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors shrink-0"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                                e.target.parentElement.innerHTML = '<div class="w-10 h-10 sm:w-12 sm:h-12"></div>';
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0" /> // Placeholder to maintain spacing
-                                    )}
+                        {/* Parts List - Scrollable */}
+                        <div className="overflow-y-auto parts-scrollbar max-h-[400px] sm:max-h-[500px]">
+                            {parts.map((part, index) => (
+                                <div
+                                    key={`${part.id}-${index}`}
+                                    className="flex items-center justify-between px-3 sm:px-4 py-3 border-b border-gray-800 hover:bg-gray-900 transition-colors cursor-pointer"
+                                    onClick={() => handlePartClick(part)}
+                                >
+                                    {/* Left section: Part details */}
+                                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                        {/* Part Type - Fixed width for alignment */}
+                                        <span className="bg-gray-700 text-white px-3 py-2 rounded text-sm font-medium w-28 sm:w-32 text-center shrink-0">
+                                            {part.partType}
+                                        </span>
 
-                                    <span className="text-gray-300 text-sm sm:text-base truncate min-w-0" title={part.name}>{part.name}</span>
-                                </div>
+                                        {/* Part Name with optional image */}
+                                        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                                            {/* Optional image - show on medium screens and up */}
+                                            {part.image && (
+                                                <div className="hidden sm:block shrink-0">
+                                                    <img
+                                                        src={part.image}
+                                                        alt={part.name}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setZoomedImage(part.image);
+                                                        }}
+                                                        className="w-10 h-10 object-contain rounded border border-gray-600 cursor-pointer hover:border-pink-500 transition-colors"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
 
-                                {/* Right group: Price */}
-                                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                                    <div className="flex flex-col items-end">
-                                        <span className={`${showPHP ? 'text-sm text-gray-400' : 'text-green-400 font-medium text-sm sm:text-base'}`}>
-                                            {showPHP && conversionRate ? `$${part.price.toLocaleString()}` : formatPrice(part.price)}
+                                            {/* Part Name */}
+                                            <span className="text-gray-300 text-sm sm:text-base truncate min-w-0" title={part.name}>
+                                                {part.name}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Right section: Price */}
+                                    <div className="flex flex-col items-end shrink-0 ml-2">
+                                        <span className="text-green-400 font-medium text-sm sm:text-base whitespace-nowrap">
+                                            {formatPrice(part.price)}
                                         </span>
                                         {showPHP && conversionRate && (
-                                            <span className="text-green-400 font-medium text-sm sm:text-base">
-                                                {formatPrice(part.price)}
+                                            <span className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                                                ${part.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         )}
                                     </div>
-                                    {/* Shop cart icon for quick buy */}
-                                    {part.product && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleBuyClick(part.product);
-                                            }}
-                                            className="text-gray-400 hover:text-pink-500 transition-colors p-1"
-                                            title="View product"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
-                                            </svg>
-                                        </button>
-                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-
-                <div className="flex flex-col gap-4 mb-6">
 
                     {/* Action Buttons and Total Price */}
-                    <div className="flex items-center justify-between">
-                        {/* Left group: Download button */}
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={generatePDF}
-                                className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 h-[46px] text-sm sm:text-base whitespace-nowrap"
-                            >
-                                Download List
-                            </button>
-                            <div className="flex items-center gap-4">
+                    <div className="space-y-4 sm:space-y-0 sm:flex sm:items-center sm:justify-between gap-4">
+                        {/* Left group: Buttons and currency toggle */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
+                                <button
+                                    onClick={generatePDF}
+                                    className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-2 rounded hover:bg-white hover:text-black transition-colors duration-200 text-sm sm:text-base whitespace-nowrap flex-1 sm:flex-none"
+                                >
+                                    Download List
+                                </button>
+
                                 <button
                                     onClick={handleHeartToggle}
-                                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                    className="p-2 hover:bg-gray-800 rounded-lg transition-colors shrink-0"
                                     title={isLikedCurrent ? "Remove from favorites" : "Add to favorites"}
                                 >
                                     <Heart
@@ -733,12 +719,13 @@ const PartsList = () => {
                                     />
                                 </button>
                             </div>
-                            {/* Currency Toggle Button */}
-                            <div className="flex items-center justify-end">
-                                <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+
+                            {/* Currency Toggle */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center bg-gray-800 rounded-lg p-1">
                                     <button
                                         onClick={() => setShowPHP(false)}
-                                        className={`px-4 py-2 rounded-md transition-colors ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                        className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-colors text-xs sm:text-sm ${!showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
                                             }`}
                                     >
                                         USD
@@ -746,48 +733,56 @@ const PartsList = () => {
                                     <button
                                         onClick={() => setShowPHP(true)}
                                         disabled={!conversionRate || conversionLoading}
-                                        className={`px-4 py-2 rounded-md transition-colors ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                                        className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md transition-colors text-xs sm:text-sm ${showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
                                             } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
                                         {conversionLoading ? 'Loading...' : 'PHP'}
                                     </button>
                                 </div>
+
+                                {/* Currency Info */}
+                                {conversionRate && (
+                                    <div className="text-xs sm:text-sm text-gray-400 hidden sm:block">
+                                        Rate: 1 USD = {conversionRate.toFixed(4)} PHP
+                                    </div>
+                                )}
                             </div>
-
-                            {/* Currency Info */}
-                            {conversionRate && (
-                                <div className="text-sm text-gray-400 text-right">
-                                    Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
-                                </div>
-                            )}
-
                         </div>
 
                         {/* Total Price */}
-                        <div className="border border-green-500 text-green-400 px-4 sm:px-6 py-2 rounded text-lg sm:text-xl font-semibold h-[46px] flex flex-col items-center justify-center">
-                            <div className="text-base">{formatTotalPrice()}</div>
+                        <div className="border border-green-500 text-green-400 px-3 sm:px-4 py-2 rounded flex flex-col items-center sm:items-end">
+                            <div className="text-base sm:text-lg lg:text-xl font-semibold">
+                                {formatTotalPrice()}
+                            </div>
                             {showPHP && conversionRate && (
                                 <div className="text-xs text-gray-400 mt-1">
                                     ≈ ${totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </div>
                             )}
+                            {conversionRate && (
+                                <div className="text-xs text-gray-400 mt-1 sm:hidden">
+                                    1 USD = {conversionRate.toFixed(4)} PHP
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Buttons */}
-            <div className="flex justify-between gap-3 mt-4 max-w-7xl w-full mx-auto">
-                <button
-                    onClick={() => navigate('/automate')}
-                    className="bg-transparent border border-white text-white font-semibold px-6 sm:px-8 py-3 rounded-lg hover:bg-white hover:text-pink-500 transition-colors duration-200">
-                    Back
-                </button>
-                <button
-                    onClick={handleAskAI}
-                    className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 sm:px-8 py-3 rounded-lg transition-colors duration-200">
-                    Ask AI
-                </button>
+                {/* Buttons */}
+                <div className="flex flex-col sm:flex-row justify-between gap-3 mt-4 sm:mt-6">
+                    <button
+                        onClick={() => navigate('/automate')}
+                        className="bg-transparent border border-white text-white font-semibold px-4 sm:px-6 py-3 rounded-lg hover:bg-white hover:text-pink-500 transition-colors duration-200 text-sm sm:text-base order-2 sm:order-1"
+                    >
+                        Back
+                    </button>
+                    <button
+                        onClick={handleAskAI}
+                        className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-4 sm:px-6 py-3 rounded-lg transition-colors duration-200 text-sm sm:text-base order-1 sm:order-2"
+                    >
+                        Ask AI
+                    </button>
+                </div>
             </div>
 
             {/* Part Details Modal */}
@@ -800,7 +795,6 @@ const PartsList = () => {
                         className="bg-gray-900 border border-gray-700 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto parts-scrollbar"
                         onClick={(e) => e.stopPropagation()}
                     >
-
                         {/* Modal Header */}
                         <div className="flex items-center justify-between p-4 border-b border-gray-700">
                             <h3 className="text-lg font-semibold">Part Details</h3>
@@ -892,7 +886,7 @@ const PartsList = () => {
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 border-t border-gray-700 flex justify-end gap-3">
+                        <div className="p-4 border-t border-gray-700 flex flex-col sm:flex-row justify-end gap-3">
                             <button
                                 onClick={() => setShowPartModal(false)}
                                 className="px-4 py-2 border border-gray-600 text-gray-300 rounded hover:bg-gray-800 transition-colors"
@@ -905,7 +899,7 @@ const PartsList = () => {
                                         handleBuyClick(partDetails?.product_url || selectedPart.product);
                                         setShowPartModal(false);
                                     }}
-                                    className="px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600 transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600 transition-colors flex items-center justify-center gap-2"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />

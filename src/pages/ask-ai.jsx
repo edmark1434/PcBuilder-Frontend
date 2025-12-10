@@ -9,7 +9,7 @@ const AskAI = () => {
     const [currentBuild, setCurrentBuild] = useState(null);
     const messagesEndRef = useRef(null);
     const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-    
+
     // Load the saved build from session storage on component mount
     useEffect(() => {
         const savedBuild = sessionStorage.getItem('currentBuild');
@@ -69,15 +69,15 @@ const AskAI = () => {
     // Extract YouTube video IDs from text
     const extractYouTubeLinks = (text) => {
         console.log('DEBUG: Extracting YouTube links from:', text.substring(0, 200));
-        
+
         const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g;
         const matches = [];
         let match;
-        
+
         while ((match = youtubeRegex.exec(text)) !== null) {
             const videoId = match[1];
             console.log('DEBUG: Found YouTube video ID:', videoId);
-            
+
             // Check if it's a valid YouTube video ID format
             if (videoId && videoId.length === 11) {
                 const alreadyCaptured = matches.some(m => m.id === videoId);
@@ -90,7 +90,7 @@ const AskAI = () => {
                 }
             }
         }
-        
+
         // Also check for "Video Tutorials:" section
         if (text.includes('Video Tutorials:')) {
             const videoSection = text.split('Video Tutorials:')[1];
@@ -110,7 +110,7 @@ const AskAI = () => {
                 }
             }
         }
-        
+
         console.log('DEBUG: Total YouTube links found:', matches.length);
         return matches;
     };
@@ -130,8 +130,8 @@ const AskAI = () => {
     const handleSendMessage = async () => {
         if (!inputValue.trim()) return;
 
-        const userMessage = { 
-            role: 'user', 
+        const userMessage = {
+            role: 'user',
             content: inputValue,
             hasBullets: false
         };
@@ -168,7 +168,7 @@ const AskAI = () => {
         const requestData = {
             question: inputValue,
             build: transformBuildFormat(currentBuild),
-            category: category 
+            category: category
         };
 
         console.log('Sending to backend with category:', requestData);
@@ -193,7 +193,7 @@ const AskAI = () => {
 
                 if (result.success && result.message) {
                     const message = result.message;
-                    
+
                     // Handle different response formats
                     if (typeof message === 'object') {
                         if (message.format === 'bulleted' || message.has_bullets) {
@@ -213,17 +213,17 @@ const AskAI = () => {
                     } else if (typeof message === 'string') {
                         aiResponse = message;
                         // Check for bullet points in string
-                        hasBullets = message.includes('•') || 
-                                    message.includes('- ') || 
-                                    /^\s*\d+\.\s+/m.test(message) ||
-                                    message.includes('Compatibility Score:') ||
-                                    message.includes('GUIDE:') ||
-                                    message.includes('Upgrade Priority:') ||
-                                    message.includes('Value Assessment:') ||
-                                    message.includes('PC ASSEMBLY GUIDE:') ||
-                                    message.includes('LEARNING PATH:') ||
-                                    message.includes('Video Tutorials:');
-                        
+                        hasBullets = message.includes('•') ||
+                            message.includes('- ') ||
+                            /^\s*\d+\.\s+/m.test(message) ||
+                            message.includes('Compatibility Score:') ||
+                            message.includes('GUIDE:') ||
+                            message.includes('Upgrade Priority:') ||
+                            message.includes('Value Assessment:') ||
+                            message.includes('PC ASSEMBLY GUIDE:') ||
+                            message.includes('LEARNING PATH:') ||
+                            message.includes('Video Tutorials:');
+
                         // Extract YouTube links
                         youtubeLinks = extractYouTubeLinks(message);
                     }
@@ -255,10 +255,10 @@ const AskAI = () => {
             const aiMessage = {
                 role: 'assistant',
                 content: "I'm having trouble connecting to the AI service. Based on your components:\n\n" +
-                        "• This appears to be a well-balanced build\n" +
-                        "• Components seem compatible on paper\n" +
-                        "• Consider checking specific compatibility details\n" +
-                        "• For gaming, expect good 1440p performance",
+                    "• This appears to be a well-balanced build\n" +
+                    "• Components seem compatible on paper\n" +
+                    "• Consider checking specific compatibility details\n" +
+                    "• For gaming, expect good 1440p performance",
                 hasBullets: true,
                 youtubeLinks: [],
                 sentiment: 'neutral'
@@ -279,7 +279,7 @@ const AskAI = () => {
     // Render YouTube video iframes
     const renderYouTubeVideos = (youtubeLinks) => {
         if (!youtubeLinks || youtubeLinks.length === 0) return null;
-        
+
         return (
             <div className="mt-4 space-y-3">
                 <div className="text-sm font-semibold text-pink-400 mb-2">
@@ -299,9 +299,9 @@ const AskAI = () => {
                                 ></iframe>
                             </div>
                             <div className="p-3">
-                                <a 
-                                    href={link.url} 
-                                    target="_blank" 
+                                <a
+                                    href={link.url}
+                                    target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-blue-400 hover:text-blue-300 text-xs font-medium flex items-center gap-1"
                                 >
@@ -330,7 +330,7 @@ const AskAI = () => {
                         renderBulletedContent(content)
                     )}
                 </div>
-                
+
                 {/* YouTube videos */}
                 {renderYouTubeVideos(youtubeLinks)}
             </div>
@@ -344,15 +344,15 @@ const AskAI = () => {
             <div className="space-y-1">
                 {lines.map((line, index) => {
                     const trimmed = line.trim();
-                    
+
                     // Check if line is a bullet point
                     const isBullet = trimmed.startsWith('•');
-                    const isHeader = trimmed.includes(':') && !trimmed.startsWith('•') && 
-                                    (trimmed.endsWith(':') || trimmed.includes('Score:') || 
-                                     trimmed.includes('GUIDE:') || trimmed.includes('Priority:') ||
-                                     trimmed.includes('Assessment:') || trimmed.includes('ASSEMBLY GUIDE:') ||
-                                     trimmed.includes('LEARNING PATH:') || trimmed.includes('Video Tutorials:'));
-                    
+                    const isHeader = trimmed.includes(':') && !trimmed.startsWith('•') &&
+                        (trimmed.endsWith(':') || trimmed.includes('Score:') ||
+                            trimmed.includes('GUIDE:') || trimmed.includes('Priority:') ||
+                            trimmed.includes('Assessment:') || trimmed.includes('ASSEMBLY GUIDE:') ||
+                            trimmed.includes('LEARNING PATH:') || trimmed.includes('Video Tutorials:'));
+
                     if (isHeader) {
                         return (
                             <div key={index} className="font-semibold text-lg text-pink-400 mt-3 mb-1">
@@ -363,7 +363,7 @@ const AskAI = () => {
                         const bulletText = trimmed.substring(1).trim();
                         // Check for sub-bullets (indented bullets)
                         const isSubBullet = line.startsWith('  •') || line.startsWith('    •');
-                        
+
                         return (
                             <div key={index} className={`flex items-start ${isSubBullet ? 'ml-6' : ''}`}>
                                 <span className="text-pink-400 mr-2 mt-1">•</span>
@@ -463,7 +463,7 @@ const AskAI = () => {
                                             </span>
                                         </div>
                                     )}
-                                    
+
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium truncate">{part.name}</p>
                                         <p className="text-xs text-gray-500">{part.partType}</p>
@@ -559,11 +559,11 @@ const AskAI = () => {
                                                 <div className="mt-3 pt-2 border-t border-gray-700">
                                                     <span className={`text-xs font-semibold px-2 py-1 rounded ${message.sentiment === 'good' ? 'bg-green-500/20 text-green-400' :
                                                         message.sentiment === 'neutral' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                        'bg-red-500/20 text-red-400'
+                                                            'bg-red-500/20 text-red-400'
                                                         }`}>
                                                         {message.sentiment === 'good' ? '✅ Positive' :
                                                             message.sentiment === 'neutral' ? '⚪ Neutral' :
-                                                            '⚠️ Concerns'}
+                                                                '⚠️ Concerns'}
                                                     </span>
                                                 </div>
                                             )}
@@ -613,21 +613,23 @@ const AskAI = () => {
                         </div>
 
                         {/* Input Area - Bottom */}
-                        <div className="p-8 border-t border-gray-800 transition-all duration-500 ease-in-out">
+                        <div className="p-4 sm:p-8 border-t border-gray-800">
                             <div className="max-w-7xl mx-auto">
-                                <div className="flex items-center gap-4 bg-gray-800 rounded-full px-6 py-4">
-                                    <input
-                                        type="text"
-                                        value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
-                                        onKeyPress={handleKeyPress}
-                                        placeholder="Ask AI about your build"
-                                        className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none"
-                                    />
+                                <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                                    <div className="flex-1 flex items-center bg-gray-800 rounded-full px-4 sm:px-6 py-3">
+                                        <input
+                                            type="text"
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            onKeyPress={handleKeyPress}
+                                            placeholder="Ask AI about your build"
+                                            className="flex-1 bg-transparent text-white placeholder-gray-400 outline-none w-full"
+                                        />
+                                    </div>
                                     <button
                                         onClick={handleSendMessage}
                                         disabled={!inputValue.trim() || isLoading}
-                                        className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-2 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-3 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 whitespace-nowrap"
                                     >
                                         {isLoading ? (
                                             <>
