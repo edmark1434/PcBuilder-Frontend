@@ -18,6 +18,12 @@ const Favorites = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  
+  // Currency conversion states
+  const [conversionRate, setConversionRate] = useState(null);
+  const [conversionLoading, setConversionLoading] = useState(false);
+  const [conversionError, setConversionError] = useState(null);
+  const [showPHP, setShowPHP] = useState(false); // Toggle between USD and PHP
 
   // Category list
   const categories = [
@@ -36,6 +42,10 @@ const Favorites = () => {
   ];
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  
+  // Exchange Rate API
+  const EXCHANGE_API_KEY = '391e07669e1a5aa7dd44cc53';
+  const EXCHANGE_API_URL = `https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/pair/USD/PHP`;
 
   // Fix image URLs
   const fixImageUrl = (url) => {
@@ -93,6 +103,69 @@ const Favorites = () => {
       default:
         return <Cpu size={16} className="text-gray-400" />;
     }
+  };
+
+  // Fetch conversion rate
+  const fetchConversionRate = async () => {
+    try {
+      setConversionLoading(true);
+      setConversionError(null);
+      
+      const response = await fetch(EXCHANGE_API_URL);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch exchange rate: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.result === 'success') {
+        setConversionRate(data.conversion_rate);
+        // Store in localStorage for caching (valid for 1 hour)
+        localStorage.setItem('usd_to_php_rate', JSON.stringify({
+          rate: data.conversion_rate,
+          timestamp: Date.now()
+        }));
+      } else {
+        throw new Error(data['error-type'] || 'Failed to get conversion rate');
+      }
+    } catch (error) {
+      console.error('Error fetching conversion rate:', error);
+      setConversionError(error.message);
+      
+      // Try to use cached rate if available
+      const cachedRate = JSON.parse(localStorage.getItem('usd_to_php_rate'));
+      if (cachedRate && (Date.now() - cachedRate.timestamp) < 3600000) { // 1 hour cache
+        setConversionRate(cachedRate.rate);
+      }
+    } finally {
+      setConversionLoading(false);
+    }
+  };
+
+  // Convert USD to PHP
+  const convertToPHP = (usdAmount) => {
+    if (!conversionRate || !usdAmount) return 0;
+    return usdAmount * conversionRate;
+  };
+
+  // Format price based on selected currency
+  const formatPrice = (price) => {
+    const priceNum = Number(price) || 0;
+    if (showPHP && conversionRate) {
+      const phpAmount = convertToPHP(priceNum);
+      return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `$${priceNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Format total price with both currencies
+  const formatTotalPrice = (totalPrice) => {
+    const totalNum = Number(totalPrice) || 0;
+    if (showPHP && conversionRate) {
+      const phpAmount = convertToPHP(totalNum);
+      return `₱${phpAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `$${totalNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   // Fetch user's favorites
@@ -269,25 +342,38 @@ const Favorites = () => {
     pdf.setFont(undefined, 'bold');
     pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
 
+    // Currency info if PHP is selected
+    if (showPHP && conversionRate) {
+      pdf.setFontSize(10);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(`Exchange Rate: 1 USD = ${conversionRate.toFixed(4)} PHP`, 105, 30, { align: "center" });
+    }
+
     // Build info
     pdf.setFontSize(12);
-    pdf.setFont(undefined, 'normal');
-    pdf.text(`Saved: ${favorite.formatted_date}`, 105, 30, { align: "center" });
+    pdf.text(`Saved: ${favorite.formatted_date}`, 105, showPHP && conversionRate ? 40 : 30, { align: "center" });
 
     // Category
     if (favorite.category) {
-      pdf.text(`Category: ${favorite.category}`, 105, 40, { align: "center" });
+      pdf.text(`Category: ${favorite.category}`, 105, showPHP && conversionRate ? 50 : 40, { align: "center" });
     }
 
     // Table
-    const tableColumn = ["Part Type", "Component Name", "Price"];
-    const tableRows = favorite.parts.map(part => [
-      part.partType,
-      part.name,
-      `$${part.price.toLocaleString()}`
-    ]);
+    const tableColumn = ["Part Type", "Component Name", "Price (USD)", showPHP ? "Price (PHP)" : ""].filter(col => col !== "");
+    const tableRows = favorite.parts.map(part => {
+      const row = [
+        part.partType,
+        part.name,
+        `$${part.price.toLocaleString()}`
+      ];
+      if (showPHP && conversionRate) {
+        const phpPrice = convertToPHP(part.price);
+        row.push(`₱${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      }
+      return row;
+    });
 
-    const startY = favorite.category ? 50 : 45;
+    const startY = favorite.category ? (showPHP && conversionRate ? 60 : 50) : (showPHP && conversionRate ? 55 : 45);
 
     autoTable(pdf, {
       startY: startY,
@@ -299,8 +385,9 @@ const Favorites = () => {
       styles: { fontSize: 12, cellPadding: 3 },
       columnStyles: {
         0: { cellWidth: 35 },
-        1: { cellWidth: 110 },
-        2: { cellWidth: 30, halign: 'right' }
+        1: { cellWidth: 90 },
+        2: { cellWidth: 30, halign: 'right' },
+        3: { cellWidth: 40, halign: 'right' }
       }
     });
 
@@ -308,7 +395,12 @@ const Favorites = () => {
     const finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
-    pdf.text(`Total Price: $${favorite.total_price.toLocaleString()}`, 15, finalY);
+    pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString()}`, 15, finalY);
+    
+    if (showPHP && conversionRate) {
+      const totalPHP = convertToPHP(favorite.total_price);
+      pdf.text(`Total Price (PHP): ₱${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+    }
 
     // Save PDF
     const fileName = favorite.category
@@ -340,22 +432,35 @@ const Favorites = () => {
         pdf.setFont(undefined, 'bold');
         pdf.text("PC Builder - Favorite Build", 105, 20, { align: "center" });
 
-        pdf.setFontSize(12);
-        pdf.setFont(undefined, 'normal');
-        pdf.text(`Saved: ${favorite.formatted_date}`, 105, 30, { align: "center" });
-
-        if (favorite.category) {
-          pdf.text(`Category: ${favorite.category}`, 105, 40, { align: "center" });
+        // Currency info if PHP is selected
+        if (showPHP && conversionRate) {
+          pdf.setFontSize(10);
+          pdf.setFont(undefined, 'normal');
+          pdf.text(`Exchange Rate: 1 USD = ${conversionRate.toFixed(4)} PHP`, 105, 30, { align: "center" });
         }
 
-        const startY = favorite.category ? 50 : 45;
+        pdf.setFontSize(12);
+        pdf.text(`Saved: ${favorite.formatted_date}`, 105, showPHP && conversionRate ? 40 : 30, { align: "center" });
 
-        const tableColumn = ["Part Type", "Component Name", "Price"];
-        const tableRows = favorite.parts.map(part => [
-          part.partType,
-          part.name,
-          `$${part.price.toLocaleString()}`
-        ]);
+        if (favorite.category) {
+          pdf.text(`Category: ${favorite.category}`, 105, showPHP && conversionRate ? 50 : 40, { align: "center" });
+        }
+
+        const startY = favorite.category ? (showPHP && conversionRate ? 60 : 50) : (showPHP && conversionRate ? 55 : 45);
+
+        const tableColumn = ["Part Type", "Component Name", "Price (USD)", showPHP ? "Price (PHP)" : ""].filter(col => col !== "");
+        const tableRows = favorite.parts.map(part => {
+          const row = [
+            part.partType,
+            part.name,
+            `$${part.price.toLocaleString()}`
+          ];
+          if (showPHP && conversionRate) {
+            const phpPrice = convertToPHP(part.price);
+            row.push(`₱${phpPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+          }
+          return row;
+        });
 
         autoTable(pdf, {
           startY: startY,
@@ -367,15 +472,21 @@ const Favorites = () => {
           styles: { fontSize: 12, cellPadding: 3 },
           columnStyles: {
             0: { cellWidth: 35 },
-            1: { cellWidth: 110 },
-            2: { cellWidth: 30, halign: 'right' }
+            1: { cellWidth: 90 },
+            2: { cellWidth: 30, halign: 'right' },
+            3: { cellWidth: 40, halign: 'right' }
           }
         });
 
         const finalY = pdf.lastAutoTable.finalY + 10;
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Total Price: $${favorite.total_price.toLocaleString()}`, 15, finalY);
+        pdf.text(`Total Price (USD): $${favorite.total_price.toLocaleString()}`, 15, finalY);
+        
+        if (showPHP && conversionRate) {
+          const totalPHP = convertToPHP(favorite.total_price);
+          pdf.text(`Total Price (PHP): ₱${totalPHP.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY + 8);
+        }
 
         pdf.setFontSize(8);
         pdf.setFont(undefined, 'normal');
@@ -403,9 +514,10 @@ const Favorites = () => {
     setShowDetailModal(true);
   };
 
-  // Load favorites on component mount
+  // Load favorites and conversion rate on component mount
   useEffect(() => {
     fetchFavorites();
+    fetchConversionRate();
   }, [searchParams]);
 
   if (loading) {
@@ -448,6 +560,27 @@ const Favorites = () => {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* Currency Toggle */}
+            <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setShowPHP(false)}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  !showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                USD
+              </button>
+              <button
+                onClick={() => setShowPHP(true)}
+                disabled={!conversionRate || conversionLoading}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                } ${(!conversionRate || conversionLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {conversionLoading ? 'Loading...' : 'PHP'}
+              </button>
+            </div>
+
             {/* Download All Button */}
             {filteredFavorites.length > 0 && (
               <button
@@ -519,15 +652,15 @@ const Favorites = () => {
                 </div>
               )}
             </div>
-
-            {/* <button
-              onClick={fetchFavorites}
-              className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
-            >
-              Refresh
-            </button> */}
           </div>
         </div>
+
+        {/* Currency Info */}
+        {conversionRate && (
+          <div className="mb-4 text-sm text-gray-400">
+            Exchange Rate: 1 USD = {conversionRate.toFixed(4)} PHP
+          </div>
+        )}
 
         {/* Category Quick Filters */}
         {favorites.length > 0 && (
@@ -691,8 +824,8 @@ const Favorites = () => {
                           <p className="text-sm truncate">{part.name}</p>
                           <p className="text-xs text-gray-400">{part.partType}</p>
                         </div>
-                        <div className="text-green-400 font-medium">
-                          ${part.price}
+                        <div className="text-green-400 font-medium text-sm">
+                          {formatPrice(part.price)}
                         </div>
                       </div>
                     ))}
@@ -708,8 +841,13 @@ const Favorites = () => {
                       <div>
                         <p className="text-gray-400 text-sm">Total Price</p>
                         <p className="text-2xl font-bold text-green-400">
-                          ${Number(favorite.total_price).toLocaleString()}
+                          {formatTotalPrice(favorite.total_price)}
                         </p>
+                        {showPHP && conversionRate && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            ≈ ${Number(favorite.total_price).toLocaleString()}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -750,6 +888,14 @@ const Favorites = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-700">
               <div>
+                <div className="flex items-center gap-3">
+                  {selectedFavorite.category && (
+                    <span className="text-sm bg-pink-500/20 text-pink-400 px-3 py-1 rounded-full">
+                      {selectedFavorite.category}
+                    </span>
+                  )}
+                  <h3 className="text-xl font-bold">Build Details</h3>
+                </div>
                 <p className="text-gray-400 mt-1">Saved on {selectedFavorite.formatted_date}</p>
               </div>
               <button
@@ -767,7 +913,28 @@ const Favorites = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Parts List */}
                 <div>
-                  <h4 className="text-lg font-semibold mb-4">Parts List</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold">Parts List</h4>
+                    <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+                      <button
+                        onClick={() => setShowPHP(false)}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${
+                          !showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        USD
+                      </button>
+                      <button
+                        onClick={() => setShowPHP(true)}
+                        disabled={!conversionRate}
+                        className={`px-3 py-1 text-xs rounded transition-colors ${
+                          showPHP ? 'bg-pink-500 text-white' : 'text-gray-400 hover:text-white'
+                        } ${!conversionRate ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        PHP
+                      </button>
+                    </div>
+                  </div>
                   <div className="space-y-4">
                     {selectedFavorite.parts.map((part, index) => (
                       <div
@@ -795,7 +962,16 @@ const Favorites = () => {
                               <p className="font-medium">{part.name}</p>
                               <p className="text-sm text-gray-400">{part.partType}</p>
                             </div>
-                            <p className="text-green-400 font-semibold">${part.price}</p>
+                            <div className="text-right">
+                              <p className="text-green-400 font-semibold">
+                                {formatPrice(part.price)}
+                              </p>
+                              {showPHP && conversionRate && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                  ≈ ${Number(part.price).toLocaleString()}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -811,8 +987,13 @@ const Favorites = () => {
                       <div>
                         <p className="text-gray-400 mb-2">Total Price</p>
                         <p className="text-4xl font-bold text-green-400">
-                          ${Number(selectedFavorite.total_price).toLocaleString()}
+                          {formatTotalPrice(selectedFavorite.total_price)}
                         </p>
+                        {showPHP && conversionRate && (
+                          <p className="text-sm text-gray-400 mt-2">
+                            ≈ ${Number(selectedFavorite.total_price).toLocaleString()}
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -826,6 +1007,13 @@ const Favorites = () => {
                           {selectedFavorite.category || 'Uncategorized'}
                         </p>
                       </div>
+
+                      {conversionRate && (
+                        <div className="p-3 bg-gray-800/50 rounded-lg">
+                          <p className="text-sm text-gray-400 mb-1">Exchange Rate</p>
+                          <p className="font-medium">1 USD = {conversionRate.toFixed(4)} PHP</p>
+                        </div>
+                      )}
 
                       <div className="pt-6 border-t border-gray-700">
                         <button
