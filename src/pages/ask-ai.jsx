@@ -7,8 +7,22 @@ const AskAI = () => {
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [currentBuild, setCurrentBuild] = useState(null);
+    const [userNeeds, setUserNeeds] = useState('');
     const messagesEndRef = useRef(null);
     const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    
+    // Fix image URLs by adding https: prefix if needed
+    const fixImageUrl = (url) => {
+        if (!url) return '';
+        url = url.replace('&width=1', '');
+        if (url.startsWith('//')) {
+            return `https:${url}`;
+        }
+        if (!url.startsWith('http')) {
+            return `https://${url}`;
+        }
+        return url;
+    };
     
     // Load the saved build from session storage on component mount
     useEffect(() => {
@@ -16,15 +30,46 @@ const AskAI = () => {
         if (savedBuild) {
             try {
                 const buildData = JSON.parse(savedBuild);
+                
+                // Normalize uppercase/lowercase fields and fix image URLs
+                if (buildData.parts) {
+                    buildData.parts = buildData.parts.map(part => {
+                        const type = part.Type || part.partType || part.type;
+                        const title = part.Title || part.name;
+                        const vendor = part.Vendor || part.vendor || '';
+                        const price = part.Price !== undefined ? part.Price : part.price;
+                        const image = part.Image || part.image;
+                        const link = part.Link || part.product || '';
+                        const id = part.ID || part.id;
+                        const external_id = part.external_id || '';
+
+                        return {
+                            id,
+                            external_id,
+                            type,
+                            partType: type,
+                            name: title,
+                            vendor,
+                            price,
+                            image: fixImageUrl(image),
+                            product: link
+                        };
+                    });
+                }
+                
                 setCurrentBuild(buildData);
+                
+                // Load userNeeds from sessionStorage
+                const needs = sessionStorage.getItem('userNeeds') || '';
+                setUserNeeds(needs);
 
                 // Add initial system message with build details
                 if (buildData.parts && buildData.total_price) {
                     const initialMessage = {
                         role: 'assistant',
-                        content: `I've loaded your PC build (Total: $${buildData.total_price}). Here are the components:\n\n` +
+                        content: `I've loaded your PC build (Total: ₱${buildData.total_price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}). Here are the components:\n\n` +
                             buildData.parts.map(part =>
-                                `• ${part.partType}: ${part.name} - $${part.price}`
+                                `• ${part.partType}: ${part.name} - ₱${part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                             ).join('\n') +
                             '\n\nYou can ask me questions about this build, suggest alternatives, compatibility concerns, or performance expectations. I\'ll provide bulleted responses when appropriate.',
                         hasBullets: true
@@ -116,18 +161,6 @@ const AskAI = () => {
         return matches;
     };
 
-    // Fix image URLs
-    const fixImageUrl = (url) => {
-        if (!url) return '';
-        if (url.startsWith('//')) {
-            return `https:${url}`;
-        }
-        if (!url.startsWith('http')) {
-            return `https://${url}`;
-        }
-        return url;
-    };
-
     const handleSendMessage = async () => {
         if (!inputValue.trim()) return;
 
@@ -146,7 +179,12 @@ const AskAI = () => {
 
             const transformedBuild = {};
             buildData.parts.forEach(part => {
-                const partTypeKey = part.partType.toLowerCase().replace(' ', '_');
+                // Normalize uppercase/lowercase fields
+                const partType = part.Type || part.partType || part.type;
+                const name = part.Title || part.name;
+                const image = part.Image || part.image;
+                
+                const partTypeKey = partType.toLowerCase().replace(' ', '_');
                 const typeMap = {
                     'cpu': 'cpu', 'motherboard': 'motherboard', 'ram': 'ram', 'gpu': 'gpu',
                     'cpu_cooler': 'cpu_cooler', 'cpu cooler': 'cpu_cooler', 'storage': 'storage',
@@ -154,8 +192,8 @@ const AskAI = () => {
                 };
                 const backendKey = typeMap[partTypeKey] || partTypeKey;
                 transformedBuild[backendKey] = {
-                    name: part.name,
-                    image: part.image ? fixImageUrl(part.image) : null
+                    name: name,
+                    image: image ? fixImageUrl(image) : null
                 };
             });
 
@@ -172,7 +210,8 @@ const AskAI = () => {
         const requestData = {
             question: inputValue,
             build: transformBuildFormat(currentBuild),
-            category: category 
+            category: category,
+            needs: userNeeds
         };
 
         console.log('Sending to backend with category:', requestData);
@@ -424,7 +463,7 @@ const AskAI = () => {
                     <div className="flex justify-between items-start mb-4">
                         <div>
                             <h3 className="text-xl font-semibold mb-2">Your PC Build</h3>
-                            <p className="text-gray-400">Total: <span className="text-green-400 font-semibold">${currentBuild.total_price}</span></p>
+                            <p className="text-gray-400">Total: <span className="text-green-400 font-semibold">₱{currentBuild.total_price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></p>
                             {currentBuild.category && (
                                 <div className="mt-2">
                                     <span className="inline-block bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium">
@@ -473,7 +512,7 @@ const AskAI = () => {
                                         <p className="text-xs text-gray-500">{part.partType}</p>
                                     </div>
                                 </div>
-                                <div className="text-green-400 font-medium ml-2">${part.price}</div>
+                                <div className="text-green-400 font-medium ml-2">₱{part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
                         ))}
                     </div>
