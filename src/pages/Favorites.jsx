@@ -311,11 +311,11 @@ const Favorites = () => {
     }
 
     // Table
-    const tableColumn = ["Part Type", "Component Name", "Price (₱)"];
+    const tableColumn = ["Part Type", "Component Name", "Price (PHP)"];
     const tableRows = favorite.parts.map(part => [
       part.partType,
       part.name,
-      `₱${part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     ]);
 
     autoTable(pdf, {
@@ -327,9 +327,9 @@ const Favorites = () => {
       bodyStyles: { textColor: 0 },
       styles: { fontSize: 10, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 100 },
-        2: { cellWidth: 35, halign: 'right' }
+        0: { cellWidth: 25 },
+        1: { cellWidth: 95 },
+        2: { cellWidth: 50, halign: 'right' }
       }
     });
 
@@ -337,7 +337,7 @@ const Favorites = () => {
     const finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setFontSize(14);
     pdf.setFont(undefined, 'bold');
-    pdf.text(`Total Price: ${formatPrice(favorite.total_price)}`, 15, finalY);
+    pdf.text(`Total Price: P${favorite.total_price}`, 15, finalY);
 
     // Save PDF
     const fileName = favorite.category
@@ -386,11 +386,11 @@ const Favorites = () => {
           startY = startY + (descLines.length * 5) + 5;
         }
 
-        const tableColumn = ["Part Type", "Component Name", "Price (₱)"];
+        const tableColumn = ["Part Type", "Component Name", "Price (PHP)"];
         const tableRows = favorite.parts.map(part => [
           part.partType,
           part.name,
-          `₱${part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         ]);
 
         autoTable(pdf, {
@@ -402,9 +402,9 @@ const Favorites = () => {
           bodyStyles: { textColor: 0 },
           styles: { fontSize: 10, cellPadding: 3 },
           columnStyles: {
-            0: { cellWidth: 30 },
-            1: { cellWidth: 100 },
-            2: { cellWidth: 35, halign: 'right' }
+            0: { cellWidth: 25 },
+            1: { cellWidth: 95 },
+            2: { cellWidth: 50, halign: 'right' }
           }
         });
 
@@ -631,15 +631,6 @@ const Favorites = () => {
                           PDF
                         </button>
                       </div>
-                      <button
-                        onClick={() => handleViewProducts(favorite.parts)}
-                        className="w-full bg-pink-500 hover:bg-pink-600 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        View Products
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -709,36 +700,49 @@ const Favorites = () => {
                     {selectedFavorite.parts.map((part, index) => (
                       <div
                         key={index}
-                        className="flex items-center gap-4 p-4 border border-gray-700 rounded-lg bg-gray-800/50"
+                        className="flex flex-col gap-4 p-4 border border-gray-700 rounded-lg bg-gray-800/50"
                       >
-                        {part.image && (
-                          <img
-                            src={part.image}
-                            alt={part.name}
-                            className="w-16 h-16 object-cover rounded border border-gray-600"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.parentElement.innerHTML = `
-                          <div class="w-16 h-16 rounded border border-gray-600 flex items-center justify-center bg-gray-700">
-                            ${getPartIcon(part.partType)}
-                          </div>
-                        `;
-                            }}
-                          />
-                        )}
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium">{part.name}</p>
-                              <p className="text-sm text-gray-400">{part.partType}</p>
+                        <div className="flex items-center gap-4">
+                          {part.image && (
+                            <img
+                              src={part.image}
+                              alt={part.name}
+                              className="w-16 h-16 object-cover rounded border border-gray-600"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = `
+                            <div class="w-16 h-16 rounded border border-gray-600 flex items-center justify-center bg-gray-700">
+                              ${getPartIcon(part.partType)}
                             </div>
-                            <div className="text-right">
-                              <p className="text-green-400 font-semibold">
-                                {formatPrice(part.price)}
-                              </p>
+                          `;
+                              }}
+                            />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">{part.name}</p>
+                                <p className="text-sm text-gray-400">{part.partType}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-green-400 font-semibold">
+                                  {formatPrice(part.price)}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
+                        {part.product && (
+                          <button
+                            onClick={() => window.open(`https://pcx.com.ph${part.product}`, '_blank')}
+                            className="w-full bg-pink-500 hover:bg-pink-600 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            View Product
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -762,15 +766,6 @@ const Favorites = () => {
                       </div>
 
                       <div className="pt-6 border-t border-gray-700">
-                        <button
-                          onClick={() => handleViewProducts(selectedFavorite.parts)}
-                          className="w-full bg-pink-500 hover:bg-pink-600 text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 mb-3"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                          View All Products
-                        </button>
                         <button
                           onClick={() => {
                             generatePDF(selectedFavorite);
