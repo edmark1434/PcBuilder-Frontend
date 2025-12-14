@@ -532,11 +532,11 @@ const PartsList = () => {
         }
 
         // Table
-        const tableColumn = ["Part Type", "Component Name", "Price (₱)"];
+        const tableColumn = ["Part Type", "Component Name", "Price (PHP)"];
         const tableRows = parts.map(part => [
             part.partType,
             part.name,
-            `₱${part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            `P${part.price.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         ]);
 
         autoTable(pdf, {
@@ -558,7 +558,7 @@ const PartsList = () => {
         const finalY = pdf.lastAutoTable.finalY + 10;
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Total Price: ${formatPrice(totalPrice)}`, 15, finalY);
+        pdf.text(`Total Price: P${totalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 15, finalY);
 
         // Save PDF
         pdf.save("AutoBuildPC_Build.pdf");
